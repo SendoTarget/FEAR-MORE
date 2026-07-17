@@ -1,0 +1,109 @@
+diff --git a/src/Globals.cpp b/src/Globals.cpp
+--- a/src/Globals.cpp
++++ b/src/Globals.cpp
+@@ -309,6 +309,7 @@ bool PreserveRtxRendererOnFocusChange = false;
+ 
+ // Diagnostics
+ bool EnableCameraDiagnostics = false;
++bool EnableRtxCameraReassertion = false;
+ 
+ // Fixes
+ bool DisableRedundantHIDInit = false;
+diff --git a/src/Initialization.cpp b/src/Initialization.cpp
+--- a/src/Initialization.cpp
++++ b/src/Initialization.cpp
+@@ -19,6 +19,7 @@ static void ReadConfig()
+ 
+     // Diagnostics
+     EnableCameraDiagnostics = IniHelper::ReadInteger("Diagnostics", "CameraDiagnostics", 0) == 1;
++    EnableRtxCameraReassertion = IniHelper::ReadInteger("Diagnostics", "RtxCameraReassertion", 0) == 1;
+ 
+     // Fixes
+     DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
+diff --git a/src/dllmain.cpp b/src/dllmain.cpp
+--- a/src/dllmain.cpp
++++ b/src/dllmain.cpp
+@@ -17,5 +17,6 @@
+ #include "Engine/SSAAScale/SSAAScale.cpp"
+ #include "Engine/FixNvidiaShadowCorruption/FixNvidiaShadowCorruption.cpp"
++#include "Engine/RtxCameraReassertion/RtxCameraReassertion.cpp"
+ #include "Engine/CameraDiagnostics/CameraDiagnostics.cpp"
+ #include "Engine/DeviceCreationHook/DeviceCreationHook.cpp"
+ #include "Engine/FixScriptedAnimationCrash/FixScriptedAnimationCrash.cpp"
+diff --git a/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp b/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp
+--- a/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp
++++ b/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp
+@@ -78,14 +78,15 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD*
+         }
+ 
+         InstallCameraDiagnostics(device);
++        InstallRtxCameraReassertion(device);
+     }
+ 
+     return result;
+ }
+ 
+ static void ApplyDeviceCreationHook()
+ {
+-    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias && !FastVRAMDetection && !EnableCameraDiagnostics) return;
++    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias && !FastVRAMDetection && !EnableCameraDiagnostics && !EnableRtxCameraReassertion) return;
+ 
+     HookHelper::ApplyHook((void*)GetAddress(Addr::CreateAndInitializeDevice), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, g_State.CurrentFEARGame == FEAR);
+ }
+diff --git a/src/Engine/CameraDiagnostics/CameraDiagnostics.cpp b/src/Engine/CameraDiagnostics/CameraDiagnostics.cpp
+--- a/src/Engine/CameraDiagnostics/CameraDiagnostics.cpp
++++ b/src/Engine/CameraDiagnostics/CameraDiagnostics.cpp
+@@ -704,6 +704,8 @@ namespace CameraDiagnostics
+     static HRESULT WINAPI EndSceneHook(IDirect3DDevice9* device)
+     {
+         const HRESULT result = s_EndScene(device);
++        if (EnableRtxCameraReassertion)
++            RtxCameraReassertion::OnEndScene(device);
+         ExclusiveStateLock lock;
+         if (!s_CaptureArmed)
+         {
+@@ -781,6 +783,8 @@ namespace CameraDiagnostics
+     static HRESULT WINAPI DrawPrimitiveHook(IDirect3DDevice9* device, D3DPRIMITIVETYPE primitiveType,
+         UINT startVertex, UINT primitiveCount)
+     {
++        if (EnableRtxCameraReassertion)
++            RtxCameraReassertion::BeforeDraw(device, s_SetTransform);
+         const HRESULT result = s_DrawPrimitive(device, primitiveType, startVertex, primitiveCount);
+         if (SUCCEEDED(result))
+             CountDraw(primitiveCount);
+@@ -790,6 +794,8 @@ namespace CameraDiagnostics
+     static HRESULT WINAPI DrawIndexedPrimitiveHook(IDirect3DDevice9* device, D3DPRIMITIVETYPE primitiveType,
+         INT baseVertexIndex, UINT minimumVertexIndex, UINT numberOfVertices, UINT startIndex, UINT primitiveCount)
+     {
++        if (EnableRtxCameraReassertion)
++            RtxCameraReassertion::BeforeDraw(device, s_SetTransform);
+         const HRESULT result = s_DrawIndexedPrimitive(device, primitiveType, baseVertexIndex,
+             minimumVertexIndex, numberOfVertices, startIndex, primitiveCount);
+         if (SUCCEEDED(result))
+@@ -800,15 +806,20 @@ namespace CameraDiagnostics
+     static HRESULT WINAPI SetVertexShaderHook(IDirect3DDevice9* device, IDirect3DVertexShader9* shader)
+     {
+         const HRESULT result = s_SetVertexShader(device, shader);
++        ShaderIdentity observedShader = {};
+         if (SUCCEEDED(result))
+         {
+             ExclusiveStateLock lock;
+-            if (!IsCaptureActiveLocked())
+-                return result;
+-
+-            s_CurrentShaderPresent = shader != nullptr;
+-            s_CurrentShader = ObserveShader(shader);
+-            ++s_Frame.setVertexShaderCalls;
++            if (IsCaptureActiveLocked())
++            {
++                s_CurrentShaderPresent = shader != nullptr;
++                s_CurrentShader = ObserveShader(shader);
++                observedShader = s_CurrentShader;
++                ++s_Frame.setVertexShaderCalls;
++            }
+         }
++        if (SUCCEEDED(result) && EnableRtxCameraReassertion)
++            RtxCameraReassertion::AfterSetVertexShader(device, shader, observedShader.hash,
++                observedShader.byteCount, observedShader.versionToken);
+         return result;
+     }

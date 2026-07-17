@@ -1,0 +1,12 @@
+diff --git a/build/VC17/libMinHook.vcxproj b/build/VC17/libMinHook.vcxproj
+--- a/build/VC17/libMinHook.vcxproj
++++ b/build/VC17/libMinHook.vcxproj
+@@ -116,7 +116,7 @@
+       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;STRICT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+       <MinimalRebuild>false</MinimalRebuild>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
++      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+       <FunctionLevelLinking>true</FunctionLevelLinking>
+       <WarningLevel>Level3</WarningLevel>
+       <DebugInformationFormat>None</DebugInformationFormat>

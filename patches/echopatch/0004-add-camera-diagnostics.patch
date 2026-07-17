@@ -1,0 +1,57 @@
+diff --git a/src/Globals.cpp b/src/Globals.cpp
+--- a/src/Globals.cpp
++++ b/src/Globals.cpp
+@@ -305,6 +305,9 @@ GlobalState g_State;
+ // Compatibility
+ bool PatchGameModules = true;
+ 
++// Diagnostics
++bool EnableCameraDiagnostics = false;
++
+ // Fixes
+ bool DisableRedundantHIDInit = false;
+ bool HighFPSFixes = false;
+diff --git a/src/Initialization.cpp b/src/Initialization.cpp
+--- a/src/Initialization.cpp
++++ b/src/Initialization.cpp
+@@ -15,6 +15,9 @@ static void ReadConfig()
+     // Compatibility
+     PatchGameModules = IniHelper::ReadInteger("Compatibility", "PatchGameModules", 1) == 1;
+ 
++    // Diagnostics
++    EnableCameraDiagnostics = IniHelper::ReadInteger("Diagnostics", "CameraDiagnostics", 0) == 1;
++
+     // Fixes
+     DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
+     HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
+diff --git a/src/dllmain.cpp b/src/dllmain.cpp
+--- a/src/dllmain.cpp
++++ b/src/dllmain.cpp
+@@ -16,5 +16,6 @@
+ #include "Engine/SSAAScale/SSAAScale.cpp"
+ #include "Engine/FixNvidiaShadowCorruption/FixNvidiaShadowCorruption.cpp"
++#include "Engine/CameraDiagnostics/CameraDiagnostics.cpp"
+ #include "Engine/DeviceCreationHook/DeviceCreationHook.cpp"
+ #include "Engine/FixScriptedAnimationCrash/FixScriptedAnimationCrash.cpp"
+ #include "Engine/ConsoleEnabled/ConsoleEnabled.cpp"
+diff --git a/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp b/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp
+--- a/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp
++++ b/src/Engine/DeviceCreationHook/DeviceCreationHook.cpp
+@@ -75,14 +75,16 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD*
+             g_State.hookedSetTextureAddr = newSetTextureAddr;
+             g_State.hookedDevice = device;
+         }
++
++        InstallCameraDiagnostics(device);
+     }
+ 
+     return result;
+ }
+ 
+ static void ApplyDeviceCreationHook()
+ {
+-    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias && !FastVRAMDetection) return;
++    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias && !FastVRAMDetection && !EnableCameraDiagnostics) return;
+ 
+     HookHelper::ApplyHook((void*)GetAddress(Addr::CreateAndInitializeDevice), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, g_State.CurrentFEARGame == FEAR);
+ }

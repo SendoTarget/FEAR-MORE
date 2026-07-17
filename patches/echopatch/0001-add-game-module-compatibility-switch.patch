@@ -1,0 +1,67 @@
+diff --git a/EchoPatch/EchoPatch.ini b/EchoPatch/EchoPatch.ini
+--- a/EchoPatch/EchoPatch.ini
++++ b/EchoPatch/EchoPatch.ini
+@@ -1 +1,7 @@
++[Compatibility]
++; Controls whether EchoPatch scans and patches GameClient.dll, GameServer.dll,
++; and ClientFX after the engine loads them. The upstream-compatible default is 1.
++; 0 = Engine hooks only, 1 = Engine and game-module hooks
++PatchGameModules = 1
++
+ [Fixes]
+diff --git a/src/Globals.cpp b/src/Globals.cpp
+--- a/src/Globals.cpp
++++ b/src/Globals.cpp
+@@ -305 +305,4 @@ GlobalState g_State;
++// Compatibility
++bool PatchGameModules = true;
++
+ // Fixes
+diff --git a/src/Initialization.cpp b/src/Initialization.cpp
+--- a/src/Initialization.cpp
++++ b/src/Initialization.cpp
+@@ -15 +15,4 @@ static void ReadConfig()
++    // Compatibility
++    PatchGameModules = IniHelper::ReadInteger("Compatibility", "PatchGameModules", 1) == 1;
++
+     // Fixes
+@@ -295 +298,20 @@ static void ReadConfig()
++static void LogGameModuleCompatibilityMode()
++{
++    static constexpr char kMessage[] =
++        "EchoPatch: [Compatibility] PatchGameModules=0; "
++        "GameClient.dll, GameServer.dll, and ClientFX hooks were intentionally skipped.\r\n";
++
++    OutputDebugStringA(kMessage);
++
++    HANDLE hLog = CreateFileA("FearMore-EchoPatch.log", FILE_APPEND_DATA,
++        FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS,
++        FILE_ATTRIBUTE_NORMAL, nullptr);
++    if (hLog != INVALID_HANDLE_VALUE)
++    {
++        DWORD bytesWritten = 0;
++        WriteFile(hLog, kMessage, static_cast<DWORD>(sizeof(kMessage) - 1), &bytesWritten, nullptr);
++        CloseHandle(hLog);
++    }
++}
++
+ static void Init()
+@@ -321,6 +343,14 @@ static void Init()
+     }
+-
+-    // Get the handle of the client as soon as it is loaded
+-    ApplyClientHook();
+-
++
++    if (PatchGameModules)
++    {
++        // Get the handles of the game modules as soon as they are loaded.
++        ApplyClientHook();
++    }
++    else
++    {
++        // Rebuilt modules do not retain the retail binaries' patch addresses.
++        LogGameModuleCompatibilityMode();
++    }
++
+     // Fixes

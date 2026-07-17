@@ -1,0 +1,2551 @@
+diff --git base/ClientFxDLL/ParticleSystemFX.cpp modified/ClientFxDLL/ParticleSystemFX.cpp
+index 435b0e650be15bfb7264744d3827f501720ca3a0..82d451358be8107e2730bb3b199855a027ced5d2 100644
+--- base/ClientFxDLL/ParticleSystemFX.cpp
++++ modified/ClientFxDLL/ParticleSystemFX.cpp
+@@ -498,5 +497,0 @@ void CParticleSystemFX::UpdateParticles(float tmDelta, float fUnitLifetime, cons
+-	//ignore updates of too small of a delta
+-	static const float kfMinParticleUpdate = 0.001f;
+-	if(tmDelta < kfMinParticleUpdate)
+-		return;
+-
+@@ -543 +537,0 @@ bool CParticleSystemFX::HasAnyParticles() const
+-
+diff --git base/ClientFxDLL/ParticleSystemGroup.cpp modified/ClientFxDLL/ParticleSystemGroup.cpp
+index 77557eb3ef705014d5d5eb688a8ac83cf535b1f9..43bcfe5ecc070140dc470652a6526d14eeb1bc17 100644
+--- base/ClientFxDLL/ParticleSystemGroup.cpp
++++ modified/ClientFxDLL/ParticleSystemGroup.cpp
+@@ -247 +247 @@ void CParticleSystemGroup::AddParticleBatchMarker(float fUpdateTime, bool bDefau
+-	pParticle->m_fLifetime		= -1.0f;
++	pParticle->m_fLifetime		= 0.0f;
+diff --git base/ClientFxDLL/dynalightfx.cpp modified/ClientFxDLL/dynalightfx.cpp
+index db59a7d3a05b643ea90cf05e509bedfa067c83d8..fc98c4ae80b42d975bceb58582fccf2ec9499b38 100644
+--- base/ClientFxDLL/dynalightfx.cpp
++++ modified/ClientFxDLL/dynalightfx.cpp
+@@ -176 +176 @@ void fxGetDynaLightProps(CFastList<CEffectPropertyDesc> *pList)
+-	fxProp.SetupPath("Texture", "", "Texture Files (*.dds)|*.dds|Texture Animation Files (*."RESEXT_TEXTUREANIM")|*."RESEXT_TEXTUREANIM"|All Files (*.*)|*.*||", eCurve_None, "The texture associated with this light (Ambient,Spot,Cubic)");
++	fxProp.SetupPath("Texture", "", "Texture Files (*.dds)|*.dds|Texture Animation Files (*." RESEXT_TEXTUREANIM ")|*." RESEXT_TEXTUREANIM "|All Files (*.*)|*.*||", eCurve_None, "The texture associated with this light (Ambient,Spot,Cubic)");
+@@ -374 +373,0 @@ void CDynaLightFX::UpdateDynamicProperties(float fUnitTime)
+-
+diff --git base/ClientShellDLL/BindMgr.cpp modified/ClientShellDLL/BindMgr.cpp
+index 5835c21d84dba485b3a3c9f04822e55a302cb507..74eacb8ddc37417afc2a5eb3e36d159f92ab48b8 100644
+--- base/ClientShellDLL/BindMgr.cpp
++++ modified/ClientShellDLL/BindMgr.cpp
+@@ -15,0 +16 @@
++#include "FearMoreControllerMgr.h"
+@@ -147,0 +149,4 @@ void CBindMgr::GetCommandValues(uint32 nCommand, TfloatList *pValues) const
++
++	const float fControllerValue = CFearMoreControllerMgr::Instance().GetCommandValue( nCommand );
++	if( m_bInputEnabled && fControllerValue != 0.0f )
++		pValues->push_back( fControllerValue );
+@@ -163,0 +169,4 @@ float CBindMgr::GetMaxCommandValue(uint32 nCommand) const
++	const float fControllerValue = CFearMoreControllerMgr::Instance().GetCommandValue( nCommand );
++	if( m_bInputEnabled && fControllerValue != 0.0f )
++		fResult = LTMAX( fResult, fControllerValue );
++
+@@ -180,0 +190,4 @@ float CBindMgr::GetMinCommandValue(uint32 nCommand) const
++	const float fControllerValue = CFearMoreControllerMgr::Instance().GetCommandValue( nCommand );
++	if( m_bInputEnabled && fControllerValue != 0.0f )
++		fResult = LTMIN( fResult, fControllerValue );
++
+@@ -199,0 +213,4 @@ float CBindMgr::GetExtremalCommandValue(uint32 nCommand) const
++	const float fControllerValue = CFearMoreControllerMgr::Instance().GetCommandValue( nCommand );
++	if( m_bInputEnabled && fabsf( fControllerValue ) > fabsf( fResult ) )
++		fResult = fControllerValue;
++
+@@ -207,0 +225,15 @@ float CBindMgr::GetBindingValue(const SBinding &sBinding, bool bReturnDefaultOnD
++	// A controller exposed through both SDL and the legacy LTInput/DirectInput
++	// device list must contribute through only one command path.  Suppress only
++	// legacy gamepad bindings while the source-owned SDL device is actively
++	// supplying input; keyboard, mouse, and legacy-controller fallback remain
++	// untouched.
++	if( CFearMoreControllerMgr::Instance().IsInputActive() )
++	{
++		ILTInput::SDeviceDesc sDeviceDesc;
++		if( g_pLTInput->GetDeviceDesc( sBinding.m_nDevice, &sDeviceDesc ) == LT_OK &&
++			sDeviceDesc.m_eCategory == ILTInput::eDC_Gamepad )
++		{
++			return sBinding.m_fDefaultValue;
++		}
++	}
++
+@@ -266,0 +299,18 @@ void CBindMgr::Update()
++	// Merge the source-owned SDL3 controller at the established command-state
++	// primitive.  Existing keyboard/mouse bindings remain active, callbacks are
++	// still dispatched exactly once here, and multiplayer command semantics do
++	// not acquire a second path.
++	CFearMoreControllerMgr& controllerMgr = CFearMoreControllerMgr::Instance();
++	const uint32 nHighestControllerCommand = controllerMgr.GetHighestMappedCommand();
++	if( m_aCommandStates.size() <= nHighestControllerCommand )
++	{
++		m_aCommandStates.resize( nHighestControllerCommand + 1, false );
++		m_aLastCommandStates.resize( m_aCommandStates.size(), false );
++		m_aClearCommandStates.resize( m_aCommandStates.size(), false );
++	}
++	for( uint32 nCommand = 0; nCommand <= nHighestControllerCommand; ++nCommand )
++	{
++		if( controllerMgr.IsCommandOn( nCommand ) )
++			m_aCommandStates[nCommand] = true;
++	}
++
+diff --git base/ClientShellDLL/CharacterFX.cpp modified/ClientShellDLL/CharacterFX.cpp
+index bc4c664327fd4aa25425f80935e665af6b53245f..4da00baedd22c15ee8dd258bdb7216607078e4df 100644
+--- base/ClientShellDLL/CharacterFX.cpp
++++ modified/ClientShellDLL/CharacterFX.cpp
+@@ -330,0 +331 @@ bool CCharacterFX::Init(HLOCALOBJ hServObj, ILTMessage_Read *pMsg)
++	m_nSeveredLocations = 0;
+@@ -4018,0 +4020 @@ void CCharacterFX::ClearDead()
++	m_nSeveredLocations = 0;
+@@ -4105,3 +4106,0 @@ void CCharacterFX::HandleSeverMsg(ILTMessage_Read *pMsg)
+-	// Our nodetracker is no longer valid since it was for the previous unsevered body.
+-	m_NodeTrackerContext.Term();
+-
+@@ -4110,0 +4110,4 @@ void CCharacterFX::HandleSeverMsg(ILTMessage_Read *pMsg)
++	if( eHitLoc <= HL_UNKNOWN || eHitLoc >= HL_NUM_LOCS )
++	{
++		return;
++	}
+@@ -4111,0 +4115,5 @@ void CCharacterFX::HandleSeverMsg(ILTMessage_Read *pMsg)
++	uint8 nLocationFlag = ( 1 << eHitLoc );
++	if( m_nSeveredLocations & nLocationFlag )
++	{
++		return;
++	}
+@@ -4117,0 +4126,3 @@ void CCharacterFX::HandleSeverMsg(ILTMessage_Read *pMsg)
++		m_nSeveredLocations |= nLocationFlag;
++		m_NodeTrackerContext.Term();
++
+@@ -4135,0 +4147,4 @@ void CCharacterFX::HandleSeverMsg(ILTMessage_Read *pMsg)
++	if (!hBody)
++	{
++		return;
++	}
+@@ -4153,0 +4169,9 @@ void CCharacterFX::HandleSeverMsg(ILTMessage_Read *pMsg)
++	if (!hPiece)
++	{
++		return;
++	}
++
++	// Commit de-duplication only after the location resolves to an actual piece.
++	// A malformed or incompatible replay must not poison a later valid message.
++	m_nSeveredLocations |= nLocationFlag;
++	m_NodeTrackerContext.Term();
+diff --git base/ClientShellDLL/CharacterFX.h modified/ClientShellDLL/CharacterFX.h
+index 5e8e94f8e5a55e9b1d24eab5993722695234a59d..dd4174f599aef762d0018c8a898352b787781775 100644
+--- base/ClientShellDLL/CharacterFX.h
++++ modified/ClientShellDLL/CharacterFX.h
+@@ -91,0 +92 @@ class CCharacterFX : public CSpecialFX
++			m_nSeveredLocations = 0;
+@@ -361,0 +363 @@ class CCharacterFX : public CSpecialFX
++		uint8				m_nSeveredLocations;			// de-duplicates live and replayed sever messages
+@@ -402 +403,0 @@ class CCharacterFX : public CSpecialFX
+-
+diff --git base/ClientShellDLL/ClientConnectionMgr.cpp modified/ClientShellDLL/ClientConnectionMgr.cpp
+index b79275cd75b3b35e402b38f40209172bd84f1ba0..14e12de4cee9f610c74c3a752e7b2d4fb6637532 100644
+--- base/ClientShellDLL/ClientConnectionMgr.cpp
++++ modified/ClientShellDLL/ClientConnectionMgr.cpp
+@@ -35,0 +36 @@
++#include "FearMoreRuntimeControls.h"
+@@ -72,0 +74,20 @@ static const char* DOWNLOADED_CONTENT_DIRECTORY = FILE_PATH_SEPARATOR "Custom" F
++static void ForwardFearMoreSinglePlayerCVar( char const* pszVariableName )
++{
++	HCONSOLEVAR hVariable = g_pLTClient->GetConsoleVariable( pszVariableName );
++	if( !hVariable )
++	{
++		return;
++	}
++
++	char szCommand[128];
++	LTSNPrintF( szCommand, LTARRAYSIZE( szCommand ), "%s %s %.9g",
++		FearMoreRuntimeControls::kForwardCommand,
++		pszVariableName,
++		g_pLTClient->GetConsoleVariableFloat( hVariable ));
++
++	CAutoMessage cMsg;
++	cMsg.Writeuint8( MID_CONSOLE_COMMAND );
++	cMsg.WriteString( szCommand );
++	g_pLTClient->SendToServer( cMsg.Read(), MESSAGE_GUARANTEED );
++}
++
+@@ -808,0 +830,12 @@ void ClientConnectionMgr::SendClientInWorldMessage( )
++
++	// Release command-line variables are created in the client console context.
++	// Queue only the allowlisted acceptance controls after the guaranteed in-world
++	// transition so the server connection state machine accepts the following
++	// MID_CONSOLE_COMMAND messages.  Hosted and remote multiplayer never enter this path.
++	if( !IsMultiplayerGameClient( ) && m_StartGameRequest.m_Type == STARTGAME_NORMAL )
++	{
++		for( uint32 nVariable = 0; nVariable < LTARRAYSIZE( FearMoreRuntimeControls::kForwardedVariables ); ++nVariable )
++		{
++			ForwardFearMoreSinglePlayerCVar( FearMoreRuntimeControls::kForwardedVariables[nVariable] );
++		}
++	}
+diff --git base/ClientShellDLL/CursorMgr.cpp modified/ClientShellDLL/CursorMgr.cpp
+index ff042293b19a526e6a2130c4c490528799a84e80..a9968741d959a92e42db859cb9d7d28ca3ae9fb1 100644
+--- base/ClientShellDLL/CursorMgr.cpp
++++ modified/ClientShellDLL/CursorMgr.cpp
+@@ -34 +34,2 @@ CCursorMgr::CCursorMgr() :
+-	m_hDefaultCursorRecord(NULL)
++	m_hDefaultCursorRecord(NULL),
++	m_hCursor(NULL)
+@@ -83 +84,6 @@ void CCursorMgr::Term()
+-	if (!m_bInitialized)
++	// A focus transition can deliver both RENDERTERM and LOSTFOCUS.  The first
++	// event owns the engine call and wrapper retirement; every later event is a
++	// state-only no-op so it cannot re-enter the cursor interface mid-teardown.
++	if (!m_bInitialized && !m_hCursor)
++	{
++		m_hCurrentCursorRecord = NULL;
+@@ -84,0 +91,12 @@ void CCursorMgr::Term()
++	}
++
++	ILTCursor* pCursor = GetCursorInterface();
++	if (pCursor)
++	{
++		pCursor->SetCursorMode(CM_None, true);
++		if (m_hCursor)
++		{
++			pCursor->FreeCursor(m_hCursor);
++		}
++	}
++
+@@ -86,0 +105,60 @@ void CCursorMgr::Term()
++	// Renderer/focus teardown invalidates the engine-owned cursor instance.
++	// Never retain it for a later movie/menu state transition.
++	m_hCursor = NULL;
++}
++
++// ----------------------------------------------------------------------- //
++//
++//	ROUTINE:	CCursorMgr::GetCursorInterface
++//
++//	PURPOSE:	Return the public cursor interface only while it is available.
++//
++// ----------------------------------------------------------------------- //
++
++ILTCursor* CCursorMgr::GetCursorInterface() const
++{
++	return g_pLTClient ? g_pLTClient->Cursor() : NULL;
++}
++
++// ----------------------------------------------------------------------- //
++//
++//	ROUTINE:	CCursorMgr::HasHardwareCursor
++//
++//	PURPOSE:	Track whether a cursor handle is safe to pass to the public SDK.
++//
++// ----------------------------------------------------------------------- //
++
++bool CCursorMgr::HasHardwareCursor() const
++{
++#if defined(PLATFORM_XENON)
++	return true;
++#else
++	ILTCursor* pCursor = GetCursorInterface();
++	// The active F.E.A.R. 1.08 public SDK exposes no handle-validation call.
++	// This manager is the sole wrapper owner, so non-NULL plus a live cursor
++	// interface is the strongest ABI-safe validity boundary available.
++	return m_hCursor && pCursor;
++#endif
++}
++
++// ----------------------------------------------------------------------- //
++//
++//	ROUTINE:	CCursorMgr::EnsureHardwareCursor
++//
++//	PURPOSE:	Reload the default cursor after renderer/focus teardown.
++//
++// ----------------------------------------------------------------------- //
++
++bool CCursorMgr::EnsureHardwareCursor()
++{
++#if defined(PLATFORM_XENON)
++	return true;
++#else
++	if (HasHardwareCursor())
++		return true;
++	if (!GetCursorInterface())
++		return false;
++
++	m_hCursor = NULL;
++	return SetDefaultCursor() && HasHardwareCursor();
++#endif
+@@ -134,0 +213 @@ void CCursorMgr::UseCursor(bool bUseCursor, bool bLockCursorToCenter)
++	ILTCursor* pCursor = GetCursorInterface();
+@@ -138 +217 @@ void CCursorMgr::UseCursor(bool bUseCursor, bool bLockCursorToCenter)
+-	if (m_bUseCursor && m_bUseHardwareCursor)
++	if (!pCursor)
+@@ -140,3 +219,11 @@ void CCursorMgr::UseCursor(bool bUseCursor, bool bLockCursorToCenter)
+-		g_pLTClient->Cursor()->SetCursorMode(CM_Hardware);
+-		// copied the following 4 lines from Init()
+-		if (g_pLTClient->Cursor()->SetCursor(m_hCursor) != LT_OK)
++		if (m_bUseCursor && m_bUseHardwareCursor)
++			DebugCPrint(1,"can't restore hardware cursor; cursor interface is unavailable.");
++	}
++	else if (m_bUseCursor && m_bUseHardwareCursor)
++	{
++		if (!EnsureHardwareCursor())
++		{
++			pCursor->SetCursorMode(CM_None);
++			DebugCPrint(1,"can't restore hardware cursor; leaving cursor mode disabled.");
++		}
++		else
+@@ -144 +231,8 @@ void CCursorMgr::UseCursor(bool bUseCursor, bool bLockCursorToCenter)
+-			DebugCPrint(1,"can't set cursor.");
++			pCursor->SetCursorMode(CM_Hardware);
++			if (pCursor->SetCursor(m_hCursor) != LT_OK)
++			{
++				pCursor->SetCursorMode(CM_None);
++				pCursor->FreeCursor(m_hCursor);
++				m_hCursor = NULL;
++				DebugCPrint(1,"can't set cursor; leaving cursor mode disabled.");
++			}
+@@ -149 +243 @@ void CCursorMgr::UseCursor(bool bUseCursor, bool bLockCursorToCenter)
+-        g_pLTClient->Cursor()->SetCursorMode(CM_None);
++		pCursor->SetCursorMode(CM_None);
+@@ -154 +248 @@ void CCursorMgr::UseCursor(bool bUseCursor, bool bLockCursorToCenter)
+-	if(bLockCursorToCenter)
++	if(g_pLTClient && bLockCursorToCenter)
+@@ -158 +252 @@ void CCursorMgr::UseCursor(bool bUseCursor, bool bLockCursorToCenter)
+-	else
++	else if (g_pLTClient)
+@@ -174,0 +269,7 @@ void CCursorMgr::UseHardwareCursor(bool bUseHardwareCursor,bool bForce)
++	ILTCursor* pCursor = GetCursorInterface();
++	if (!pCursor)
++	{
++		if (m_bUseHardwareCursor && m_bUseCursor)
++			DebugCPrint(1,"can't restore hardware cursor; cursor interface is unavailable.");
++		return;
++	}
+@@ -176 +277 @@ void CCursorMgr::UseHardwareCursor(bool bUseHardwareCursor,bool bForce)
+-	if (m_bUseHardwareCursor && m_bUseCursor)
++	if (m_bUseHardwareCursor && m_bUseCursor && EnsureHardwareCursor())
+@@ -178 +279 @@ void CCursorMgr::UseHardwareCursor(bool bUseHardwareCursor,bool bForce)
+-		g_pLTClient->Cursor()->SetCursorMode(CM_Hardware,bForce);
++		pCursor->SetCursorMode(CM_Hardware,bForce);
+@@ -182 +283,3 @@ void CCursorMgr::UseHardwareCursor(bool bUseHardwareCursor,bool bForce)
+-		g_pLTClient->Cursor()->SetCursorMode(CM_None,bForce);
++		pCursor->SetCursorMode(CM_None,bForce);
++		if (m_bUseHardwareCursor && m_bUseCursor)
++			DebugCPrint(1,"can't restore hardware cursor; leaving cursor mode disabled.");
+@@ -221 +324 @@ bool CCursorMgr::SetCursor( HRECORD hCursorRecord )
+-	if( hCursorRecord == m_hCurrentCursorRecord )
++	if( hCursorRecord == m_hCurrentCursorRecord && HasHardwareCursor() )
+@@ -225,0 +329,6 @@ bool CCursorMgr::SetCursor( HRECORD hCursorRecord )
++	ILTCursor* pCursor = GetCursorInterface();
++	if (!pCursor)
++	{
++		DebugCPrint(1,"can't load cursor resource; cursor interface is unavailable.");
++		return false;
++	}
+@@ -229 +338,3 @@ bool CCursorMgr::SetCursor( HRECORD hCursorRecord )
+-	if (g_pLTClient->Cursor()->LoadCursorFromFile(pszHardwareCursorFileName, m_hCursor) != LT_OK)
++	HLTCURSOR hNewCursor = NULL;
++	if (pCursor->LoadCursorFromFile(pszHardwareCursorFileName, hNewCursor) != LT_OK ||
++		!hNewCursor)
+@@ -235 +346 @@ bool CCursorMgr::SetCursor( HRECORD hCursorRecord )
+-    if (g_pLTClient->Cursor()->SetCursor(m_hCursor) != LT_OK)
++	if (pCursor->SetCursor(hNewCursor) != LT_OK)
+@@ -236,0 +348 @@ bool CCursorMgr::SetCursor( HRECORD hCursorRecord )
++		pCursor->FreeCursor(hNewCursor);
+@@ -239,0 +352,6 @@ bool CCursorMgr::SetCursor( HRECORD hCursorRecord )
++	HLTCURSOR hPreviousCursor = m_hCursor;
++	m_hCursor = hNewCursor;
++	if (hPreviousCursor && hPreviousCursor != hNewCursor)
++	{
++		pCursor->FreeCursor(hPreviousCursor);
++	}
+diff --git base/ClientShellDLL/CursorMgr.h modified/ClientShellDLL/CursorMgr.h
+index 4bcbcd9e6c834a28ac0a539111ec74945e077408..978a08f69f57a2c398db57e61b82524e927645d8 100644
+--- base/ClientShellDLL/CursorMgr.h
++++ modified/ClientShellDLL/CursorMgr.h
+@@ -45,0 +46,3 @@ private:
++	ILTCursor*	GetCursorInterface() const;
++	bool		HasHardwareCursor() const;
++	bool		EnsureHardwareCursor();
+diff --git base/ClientShellDLL/GameClientShell.cpp modified/ClientShellDLL/GameClientShell.cpp
+index 8039164b04a9df6c526da7d78bf9257599662449..9ab1b750492d59befb21cabaa72cdce4b6e3c184 100644
+--- base/ClientShellDLL/GameClientShell.cpp
++++ modified/ClientShellDLL/GameClientShell.cpp
+@@ -86,0 +87,3 @@
++#include "FearMoreControllerMgr.h"
++#include "FearMoreGraphicsSettings.h"
++#include "FearMoreCorpsePersistence.h"
+@@ -1145,0 +1149,3 @@ uint32 CGameClientShell::OnEngineInitialized(LTGUID *pAppGuid, RMode *pMode)
++	// Snapshot restart-bound graphics options before any world effects allocate targets.
++	FearMoreGraphicsSettings::CaptureRestartBoundSettings();
++
+@@ -1152,0 +1159 @@ uint32 CGameClientShell::OnEngineInitialized(LTGUID *pAppGuid, RMode *pMode)
++	CFearMoreControllerMgr::Instance().Initialize();
+@@ -1603,0 +1611 @@ void CGameClientShell::OnEngineTerm()
++	CFearMoreControllerMgr::Instance().Shutdown();
+@@ -1965,0 +1974,4 @@ void CGameClientShell::Update()
++	// Poll the source-owned SDL3 gamepad before merging it through the same
++	// command-state path as keyboard and mouse.
++	CFearMoreControllerMgr::Instance().Update();
++
+@@ -2099 +2111 @@ void CGameClientShell::SendPerformanceSettingsToServer( )
+-    if( g_pLTClient->IsConnected( ))
++	if( g_pLTClient->IsConnected( ))
+@@ -2101,0 +2114,13 @@ void CGameClientShell::SendPerformanceSettingsToServer( )
++		uint32 nBodyCapRadius = ( uint32 )GetConsoleFloat( "BodyCapRadius", -1.0f );
++		uint8 nBodyCapRadiusCount = ( uint8 )GetConsoleFloat( "BodyCapRadiusCount", -1.0f );
++		uint8 nBodyCapTotalCount = ( uint8 )GetConsoleFloat( "BodyCapTotalCount", -1.0f );
++
++		// Preserve the stock performance-derived values byte-for-byte when this
++		// option is off.  The modern option only substitutes explicit, bounded
++		// corpse counts in the existing local single-player message.
++		if( GetConsoleInt( FearMoreCorpsePersistence::kSettingName, 0 ) == 1 )
++		{
++			nBodyCapRadius = FearMoreCorpsePersistence::kBodyCapRadius;
++			nBodyCapRadiusCount = FearMoreCorpsePersistence::kBodyCapRadiusCount;
++			nBodyCapTotalCount = FearMoreCorpsePersistence::kBodyCapTotalCount;
++		}
+@@ -2106,3 +2131,3 @@ void CGameClientShell::SendPerformanceSettingsToServer( )
+-		cMsg.Writeuint32(( uint32 )GetConsoleFloat( "BodyCapRadius", -1.0f ));
+-		cMsg.Writeuint8(( uint8 )GetConsoleFloat( "BodyCapRadiusCount", -1.0f ));
+-		cMsg.Writeuint8(( uint8 )GetConsoleFloat( "BodyCapTotalCount", -1.0f ));
++		cMsg.Writeuint32( nBodyCapRadius );
++		cMsg.Writeuint8( nBodyCapRadiusCount );
++		cMsg.Writeuint8( nBodyCapTotalCount );
+diff --git base/ClientShellDLL/HUDChatInput.cpp modified/ClientShellDLL/HUDChatInput.cpp
+index 88d006d8dff459c48286009f355ac6e724f61ddb..a8d97e771ac2429a4c65ed282778728e68303b80 100644
+--- base/ClientShellDLL/HUDChatInput.cpp
++++ modified/ClientShellDLL/HUDChatInput.cpp
+@@ -43 +43 @@ bool CHUDChatInput::Init()
+-		m_szChatHistory[i][0] = L'';
++		m_szChatHistory[i][0] = L'\0';
+diff --git base/ClientShellDLL/HUDCrosshair.cpp modified/ClientShellDLL/HUDCrosshair.cpp
+index 5b8d68dd654e504eb608d2d53d0399b44a4e72bd..38c16242b344cf31ef7100303266e5105a005c4d 100644
+--- base/ClientShellDLL/HUDCrosshair.cpp
++++ modified/ClientShellDLL/HUDCrosshair.cpp
+@@ -365,2 +365,2 @@ void CHUDCrosshair::RenderScope()
+-	float vR = g_vtScopeUDRadius.GetFloat() * cx * 2.0f;
+-	float vGap = g_vtScopeUDGap.GetFloat() * g_pInterfaceResMgr->GetXRatio();
++	float vR = g_vtScopeUDRadius.GetFloat() * cy * 2.0f;
++	float vGap = g_vtScopeUDGap.GetFloat() * g_pInterfaceResMgr->GetYRatio();
+diff --git base/ClientShellDLL/HUDItem.cpp modified/ClientShellDLL/HUDItem.cpp
+index db3c48d6decfad328c9fd4027403e5e44237ca06..7a99956998f159945c53cc0baaa96f7ae5aef00a 100644
+--- base/ClientShellDLL/HUDItem.cpp
++++ modified/ClientShellDLL/HUDItem.cpp
+@@ -288,0 +289,7 @@ LTVector2n CHUDItem::AlignBasePosition( LTVector2n vHudItemSize )
++	// Edge-aligned HUD items use a centered 16:9 virtual canvas on
++	// ultrawide displays.  The paired scale keeps virtual x=320 at the
++	// physical screen center instead of merely adding an inset.
++	LTRect2f SafeBounds;
++	LTVector2 SafeScale;
++	g_pInterfaceResMgr->GetHUDSafeAreaTransform(ScreenBounds, SafeBounds, SafeScale);
++
+@@ -293 +300,4 @@ LTVector2n CHUDItem::AlignBasePosition( LTVector2n vHudItemSize )
+-	if( m_eHorizAlign != kHUDHNoAlign )		Result.x = int32( Result.x * ScreenScale.x );
++	if( m_eHorizAlign == kHUDHAlignLeft || m_eHorizAlign == kHUDHAlignRight )
++		Result.x = int32( Result.x * SafeScale.x );
++	else if( m_eHorizAlign == kHUDHAlignCenter )
++		Result.x = int32( Result.x * ScreenScale.x );
+@@ -301 +311 @@ LTVector2n CHUDItem::AlignBasePosition( LTVector2n vHudItemSize )
+-	if( m_eHorizAlign == kHUDHAlignLeft )	Result.x +=  ( int32 )ScreenBounds.m_vMin.x;
++	if( m_eHorizAlign == kHUDHAlignLeft )	Result.x +=  ( int32 )SafeBounds.m_vMin.x;
+@@ -305 +315 @@ LTVector2n CHUDItem::AlignBasePosition( LTVector2n vHudItemSize )
+-	if( m_eHorizAlign == kHUDHAlignRight  )	Result.x +=  ( int32 )ScreenBounds.m_vMax.x - vHudItemSize.x;
++	if( m_eHorizAlign == kHUDHAlignRight  )	Result.x +=  ( int32 )SafeBounds.m_vMax.x - vHudItemSize.x;
+diff --git base/ClientShellDLL/InterfaceMgr.cpp modified/ClientShellDLL/InterfaceMgr.cpp
+index 77346d3d56c0060d49e7c38bf2372f55444d31dc..559fff13acaa96dec4fee5dbc7ce698bbbc490da 100644
+--- base/ClientShellDLL/InterfaceMgr.cpp
++++ modified/ClientShellDLL/InterfaceMgr.cpp
+@@ -366,0 +367,2 @@ CInterfaceMgr::CInterfaceMgr()
++	m_bAuthoredLetterBoxMask = false;
++	m_bCinematicSideMask = false;
+@@ -989,0 +992,9 @@ void CInterfaceMgr::UpdatePatchInfo()
++#if defined(FEAR_MODERN_STL_ABI)
++	// IGameSpyPatchInfo::StartupInfo embeds std::string.  Passing a modern
++	// MSVC string to the retail VC7.1 engine makes it interpret inline text as
++	// a pointer.  The automatic GameSpy patch service is obsolete, so complete
++	// only that request locally; the original VC7.1 project retains its path.
++	m_bHasRequestedPatchInfo = true;
++	return;
++#endif
++
+@@ -2080,0 +2092,4 @@ bool CInterfaceMgr::OnEvent(uint32 dwEventID, uint32 dwParam)
++			// The renderer owns the Win32 cursor lifetime.  Retire the public
++			// SDK wrapper even when a mode switch does not emit LOSTFOCUS.
++			m_CursorMgr.Term();
++
+@@ -4450 +4465,13 @@ void CInterfaceMgr::UpdateLetterBox()
+-	bool bOn = (g_vtLetterBoxDisabled.GetFloat() ? false : (m_bLetterBox || g_vtLetterBox.GetFloat()));
++	const bool bLetterBoxDisabled = (g_vtLetterBoxDisabled.GetFloat() != 0.0f);
++	const bool bAuthoredLetterBox = (!bLetterBoxDisabled && m_bLetterBox);
++	const bool bScriptedCinematicSideMask = (!bLetterBoxDisabled && m_bCinematicSideMask);
++	bool bOn = (!bLetterBoxDisabled && (m_bLetterBox || g_vtLetterBox.GetFloat()));
++	if (bAuthoredLetterBox)
++	{
++		m_bAuthoredLetterBoxMask = true;
++	}
++	else if (bOn)
++	{
++		// A forced non-authored letterbox does not own the ultrawide side mask.
++		m_bAuthoredLetterBoxMask = false;
++	}
+@@ -4513 +4540,8 @@ void CInterfaceMgr::UpdateLetterBox()
+-	if (!bOn && m_fLetterBoxAlpha <= 0.0f) return;
++	if (!bOn && m_fLetterBoxAlpha <= 0.0f)
++	{
++		m_bAuthoredLetterBoxMask = false;
++		if (!bScriptedCinematicSideMask)
++		{
++			return;
++		}
++	}
+@@ -4544,0 +4579,26 @@ void CInterfaceMgr::UpdateLetterBox()
++
++	// Authored letterboxed cameras and explicitly identified scripted PlayerLure
++	// presentations are composed for a bounded widescreen frame.  Keep gameplay,
++	// interactive lures, and fullscreen CameraFX Hor+, but hide unauthored staging
++	// beyond a centered 16:9 frame on ultrawide outputs.
++	// These side masks are opaque immediately so off-camera actors cannot leak
++	// through while the authored top/bottom bars fade in.
++	if (m_bAuthoredLetterBoxMask || bScriptedCinematicSideMask)
++	{
++		LTRect2f rScreenBounds(0.0f, 0.0f, (float)dwWidth, (float)dwHeight);
++		LTRect2f rCinematicBounds;
++		g_pInterfaceResMgr->GetAspectConstrainedRect(rScreenBounds, 16.0f / 9.0f, rCinematicBounds);
++
++		if (rCinematicBounds.m_vMin.x > 0.5f)
++		{
++			DrawPrimSetRGBA(Quad, 0, 0, 0, 255);
++			DrawPrimSetXYWH(Quad, -fBuffer, -fBuffer,
++				rCinematicBounds.m_vMin.x + fBuffer, (float)dwHeight + fBuffer * 2.0f);
++			g_pLTClient->GetDrawPrim()->DrawPrim(&Quad, 1);
++
++			DrawPrimSetXYWH(Quad, rCinematicBounds.m_vMax.x, -fBuffer,
++				(float)dwWidth - rCinematicBounds.m_vMax.x + fBuffer,
++				(float)dwHeight + fBuffer * 2.0f);
++			g_pLTClient->GetDrawPrim()->DrawPrim(&Quad, 1);
++		}
++	}
+diff --git base/ClientShellDLL/InterfaceMgr.h modified/ClientShellDLL/InterfaceMgr.h
+index b0686dccefbcd267cb65f39b17dee80fc320e95c..41a55846f057e0046d1376c79dd05608b67e2be7 100644
+--- base/ClientShellDLL/InterfaceMgr.h
++++ modified/ClientShellDLL/InterfaceMgr.h
+@@ -111,0 +112 @@ class CInterfaceMgr
++		void	SetCinematicSideMask(bool b) { m_bCinematicSideMask = b; }
+@@ -376 +377 @@ class CInterfaceMgr
+-        bool		m_bLetterBox;               // Letter box mode?
++		bool		m_bLetterBox;               // Letter box mode?
+@@ -377,0 +379,2 @@ class CInterfaceMgr
++		bool		m_bAuthoredLetterBoxMask;	// Keep ultrawide side masks through authored fade-out.
++		bool		m_bCinematicSideMask;		// Independent scripted-presentation side-mask request.
+diff --git base/ClientShellDLL/InterfaceResMgr.cpp modified/ClientShellDLL/InterfaceResMgr.cpp
+index bf8072ff02157c020b17012392d61c2067bde475..f84e06a613829759224ba983979d993f0b3d8442 100644
+--- base/ClientShellDLL/InterfaceResMgr.cpp
++++ modified/ClientShellDLL/InterfaceResMgr.cpp
+@@ -15,0 +16 @@
++#include "VarTrack.h"
+@@ -26,0 +28,3 @@ namespace
++	const float kHUDSafeAreaMaxAspect = 16.0f / 9.0f;
++
++	VarTrack s_vtHUDSafeAreaFullWidth;
+@@ -58,0 +63 @@ bool CInterfaceResMgr::Init()
++	s_vtHUDSafeAreaFullWidth.Init(g_pLTClient, "HUDSafeAreaFullWidth", NULL, 0.0f);
+@@ -308,0 +314,40 @@ LTVector2 CInterfaceResMgr::GetScreenFOV(float fYFOVRadians, float fAspectRatioS
++void CInterfaceResMgr::GetAspectConstrainedRect(const LTRect2f& screenBounds,
++	float fMaxAspect, LTRect2f& constrainedBounds) const
++{
++	constrainedBounds = screenBounds;
++
++	const float fWidth = screenBounds.m_vMax.x - screenBounds.m_vMin.x;
++	const float fHeight = screenBounds.m_vMax.y - screenBounds.m_vMin.y;
++	if (fWidth <= 0.0f || fHeight <= 0.0f || fMaxAspect <= 0.0f)
++		return;
++
++	const float fConstrainedWidth = fHeight * fMaxAspect;
++	// Treat sub-pixel differences as the same aspect ratio so matching modes
++	// keep their exact legacy bounds after floating-point conversion.
++	if (fWidth <= fConstrainedWidth + 0.5f)
++		return;
++
++	const float fHorizontalInset = (fWidth - fConstrainedWidth) * 0.5f;
++	constrainedBounds.m_vMin.x += fHorizontalInset;
++	constrainedBounds.m_vMax.x -= fHorizontalInset;
++}
++
++void CInterfaceResMgr::GetHUDSafeAreaTransform(const LTRect2f& screenBounds,
++	LTRect2f& safeBounds, LTVector2& safeScale) const
++{
++	safeBounds = screenBounds;
++	safeScale = m_vfScale;
++
++	// Allow players to retain the original full-width placement.  VarTrack
++	// keeps a value supplied by a command line or configuration file.
++	if (s_vtHUDSafeAreaFullWidth.GetFloat() != 0.0f)
++		return;
++
++	GetAspectConstrainedRect(screenBounds, kHUDSafeAreaMaxAspect, safeBounds);
++
++	const float fWidth = screenBounds.m_vMax.x - screenBounds.m_vMin.x;
++	const float fSafeWidth = safeBounds.m_vMax.x - safeBounds.m_vMin.x;
++	if (fWidth > 0.0f)
++		safeScale.x *= fSafeWidth / fWidth;
++}
++
+@@ -407,3 +451,0 @@ void CInterfaceResMgr::ConvertScreenRect(LTRect2n &rect)
+-
+-
+-
+diff --git base/ClientShellDLL/InterfaceResMgr.h modified/ClientShellDLL/InterfaceResMgr.h
+index 9f71b4dff45268e0ac2ce5cd4f6271e38a9d19a3..338ed906ba6e6254290daa18a4ba12f124bc27a5 100644
+--- base/ClientShellDLL/InterfaceResMgr.h
++++ modified/ClientShellDLL/InterfaceResMgr.h
+@@ -61,0 +62,12 @@ public:
++	// Constrains a pixel-space rectangle to a centered maximum aspect ratio.
++	// Wider rectangles are pillarboxed; matching and narrower rectangles are
++	// returned unchanged.
++	void				GetAspectConstrainedRect(const LTRect2f& screenBounds,
++							float fMaxAspect, LTRect2f& constrainedBounds) const;
++
++	// Maps the 640-wide HUD canvas into a centered 16:9 safe area on
++	// ultrawide displays.  The full viewport is returned for narrower modes
++	// and when HUDSafeAreaFullWidth is enabled.
++	void				GetHUDSafeAreaTransform(const LTRect2f& screenBounds,
++							LTRect2f& safeBounds, LTVector2& safeScale) const;
++
+diff --git base/ClientShellDLL/ModelDecalMgr.h modified/ClientShellDLL/ModelDecalMgr.h
+index 17d745d945367a764d97f43afacc403873f1430b..2b7dc6e53fdd3b5423b3875f45f6016311b12218 100644
+--- base/ClientShellDLL/ModelDecalMgr.h
++++ modified/ClientShellDLL/ModelDecalMgr.h
+@@ -41,2 +41,2 @@ public:
+-	inline uint32 GetDecalType(const char* pDecalName);
+-	inline uint32 GetDecalType(HRECORD hDecalRecord);
++	uint32 GetDecalType(const char* pDecalName);
++	uint32 GetDecalType(HRECORD hDecalRecord);
+diff --git base/ClientShellDLL/NodeBlink.h modified/ClientShellDLL/NodeBlink.h
+index 01b31ffd3f9f397014ad48e7b3035b7618fd0bf7..6e9f4fbdf0dac7aaf8746edfab7d391860de2159 100644
+--- base/ClientShellDLL/NodeBlink.h
++++ modified/ClientShellDLL/NodeBlink.h
+@@ -16,0 +17,2 @@
++#include "EngineTimer.h"
++#include "ModelsDB.h"
+@@ -17,0 +20 @@
++#include "iltmodel.h"
+diff --git base/ClientShellDLL/PerformanceMgr.cpp modified/ClientShellDLL/PerformanceMgr.cpp
+index 029dea7f9bbbf18a29327d613efeb75082828fd7..0469c6b406415671823ab3511405851cebb21537 100644
+--- base/ClientShellDLL/PerformanceMgr.cpp
++++ modified/ClientShellDLL/PerformanceMgr.cpp
+@@ -39 +39,5 @@ CPerformanceMgr::CPerformanceMgr() :
+-	m_ValidStats(ePeformanceStatsState_Invalid)
++	m_ValidStats(ePeformanceStatsState_Invalid),
++	m_bResolutionWidthRequested(false),
++	m_bResolutionHeightRequested(false),
++	m_fResolutionWidthRequest(0.0f),
++	m_fResolutionHeightRequest(0.0f)
+@@ -90,0 +95,5 @@ void CPerformanceMgr::Load(HDATABASE hDB, bool bLoadDisplaySettings ) //optional
++		// Keep the missing/legacy-profile path consistent with a normal profile
++		// load.  SetDetailLevel queues every option, including the hidden
++		// Performance resolution.  Leaving that queue alive makes the first later
++		// visit to the Performance screen apply the retail 800x600 default.
++		ApplyQueuedConsoleChanges(bLoadDisplaySettings);
+@@ -150,2 +159,12 @@ void CPerformanceMgr::Save(HDATABASECREATOR hDBC)
+-	WriteConsoleInt("Performance_ScreenWidth",pProfile->m_nScreenWidth);
+-	WriteConsoleInt("Performance_ScreenHeight",pProfile->m_nScreenHeight);
++	uint32 nScreenWidth = pProfile ? pProfile->m_nScreenWidth : GetConsoleInt("ScreenWidth",640);
++	uint32 nScreenHeight = pProfile ? pProfile->m_nScreenHeight : GetConsoleInt("ScreenHeight",480);
++	RMode currentMode;
++	if (g_pGameClientShell->IsRendererInitted() &&
++		g_pLTClient->GetRenderMode(&currentMode) == LT_OK &&
++		currentMode.m_Width > 0 && currentMode.m_Height > 0)
++	{
++		nScreenWidth = currentMode.m_Width;
++		nScreenHeight = currentMode.m_Height;
++	}
++	WriteConsoleInt("Performance_ScreenWidth",nScreenWidth);
++	WriteConsoleInt("Performance_ScreenHeight",nScreenHeight);
+@@ -686,0 +706,13 @@ bool CPerformanceMgr::GetQueuedConsoleVariable( const char* szVariable, float& f
++	// Return the effective paired resolution request even if ordinary no-op
++	// suppression kept one dimension out of m_VariableQueue.
++	if (m_bResolutionWidthRequested && LTStrIEquals(szVariable, "Performance_ScreenWidth"))
++	{
++		fValue = m_fResolutionWidthRequest;
++		return true;
++	}
++	if (m_bResolutionHeightRequested && LTStrIEquals(szVariable, "Performance_ScreenHeight"))
++	{
++		fValue = m_fResolutionHeightRequest;
++		return true;
++	}
++
+@@ -708,0 +741,11 @@ bool CPerformanceMgr::SetQueuedConsoleVariable( const char* szVariable, float fV
++	if (LTStrIEquals(szVariable, "Performance_ScreenWidth"))
++	{
++		m_bResolutionWidthRequested = true;
++		m_fResolutionWidthRequest = fValue;
++	}
++	else if (LTStrIEquals(szVariable, "Performance_ScreenHeight"))
++	{
++		m_bResolutionHeightRequested = true;
++		m_fResolutionHeightRequest = fValue;
++	}
++
+@@ -743,0 +787,12 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
++	// Resolution is a real Performance option, but its console variables also
++	// serve as a baseline for memory estimates.  Only an explicit paired queue
++	// entry means the user, auto-detect, or repair path requested a mode change.
++	// Applying an unrelated option must not turn a stale baseline into a display
++	// request.
++	const bool bResolutionRequested =
++		m_bResolutionWidthRequested && m_bResolutionHeightRequested;
++	const bool bPartialResolutionRequest =
++		m_bResolutionWidthRequested != m_bResolutionHeightRequested;
++	const float fRequestedWidth = m_fResolutionWidthRequest;
++	const float fRequestedHeight = m_fResolutionHeightRequest;
++
+@@ -744,0 +800 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
++	bool bNonResolutionRestartRequested = false;
+@@ -746,0 +803,12 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
++		const bool bResolutionVariable =
++			LTStrIEquals(m_VariableQueue[nChange].m_szVariable, "Performance_ScreenWidth") ||
++			LTStrIEquals(m_VariableQueue[nChange].m_szVariable, "Performance_ScreenHeight");
++		// Deferring display settings means consuming, but not applying, the
++		// resolution pair.  Skip both its console writes and activation flags so
++		// profile initialization cannot trigger a resolution-only renderer reset.
++		if (bResolutionVariable &&
++			(!bApplyResolution || bPartialResolutionRequest))
++		{
++			continue;
++		}
++
+@@ -748,0 +817,2 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
++		bNonResolutionRestartRequested |=
++			!bResolutionVariable && !!(m_VariableQueue[nChange].m_atFlags & eAT_RestartRender);
+@@ -751,0 +822,4 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
++	m_bResolutionWidthRequested = false;
++	m_bResolutionHeightRequested = false;
++	m_fResolutionWidthRequest = 0.0f;
++	m_fResolutionHeightRequest = 0.0f;
+@@ -754 +828,7 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
+-	if (bApplyResolution)
++	RMode currentMode;
++	const bool bCurrentModeValid =
++		bApplyResolution && g_pGameClientShell->IsRendererInitted() &&
++		g_pLTClient->GetRenderMode(&currentMode) == LT_OK &&
++		currentMode.m_Width > 0 && currentMode.m_Height > 0;
++
++	if (bApplyResolution && bResolutionRequested)
+@@ -757,3 +837,6 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
+-		uint32 nWidth	= GetConsoleInt("Performance_ScreenWidth",640);
+-		uint32 nHeight	= GetConsoleInt("Performance_ScreenHeight",480);
+-		if( pProfile->m_nScreenWidth != nWidth || pProfile->m_nScreenHeight != nHeight )
++		uint32 nWidth	= (uint32)fRequestedWidth;
++		uint32 nHeight	= (uint32)fRequestedHeight;
++		const bool bRequestedModeActive =
++			bCurrentModeValid && currentMode.m_Width == nWidth && currentMode.m_Height == nHeight;
++
++		if (bRequestedModeActive)
+@@ -761 +844,17 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
+-			//force the console variable back to the old values, so that the profile will properly 
++			WriteConsoleInt("ScreenWidth", nWidth);
++			WriteConsoleInt("ScreenHeight", nHeight);
++			if (pProfile)
++			{
++				pProfile->m_nScreenWidth = nWidth;
++				pProfile->m_nScreenHeight = nHeight;
++				pProfile->m_nScreenDepth = currentMode.m_BitDepth;
++			}
++
++			if (!bNonResolutionRestartRequested)
++				nATFlags &= ~eAT_RestartRender;
++		}
++		else if (pProfile)
++		{
++			const uint32 nOldProfileWidth = pProfile->m_nScreenWidth;
++			const uint32 nOldProfileHeight = pProfile->m_nScreenHeight;
++			const uint32 nOldProfileDepth = pProfile->m_nScreenDepth;
+@@ -763,0 +863,6 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
++			if (bCurrentModeValid)
++				pProfile->m_nScreenDepth = currentMode.m_BitDepth;
++
++			// ApplyDisplay owns validated mode enumeration and switching.  Do not
++			// pre-write the requested engine globals: an obsolete/unsupported mode
++			// must fail closed at the currently active resolution.
+@@ -765 +870,37 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
+-			nATFlags &= ~eAT_RestartRender;
++
++			RMode appliedMode;
++			const bool bAppliedModeValid =
++				g_pLTClient->GetRenderMode(&appliedMode) == LT_OK &&
++				appliedMode.m_Width > 0 && appliedMode.m_Height > 0;
++			if (bAppliedModeValid &&
++				appliedMode.m_Width == nWidth && appliedMode.m_Height == nHeight)
++			{
++				WriteConsoleInt("ScreenWidth", appliedMode.m_Width);
++				WriteConsoleInt("ScreenHeight", appliedMode.m_Height);
++				pProfile->m_nScreenDepth = appliedMode.m_BitDepth;
++
++				// A confirmed switch already reinitialized the renderer.  If the
++				// pre-switch mode was unavailable, retain any unrelated restart.
++				if (bCurrentModeValid || !bNonResolutionRestartRequested)
++					nATFlags &= ~eAT_RestartRender;
++			}
++			else
++			{
++				if (bAppliedModeValid)
++				{
++					WriteConsoleInt("ScreenWidth", appliedMode.m_Width);
++					WriteConsoleInt("ScreenHeight", appliedMode.m_Height);
++					pProfile->m_nScreenWidth = appliedMode.m_Width;
++					pProfile->m_nScreenHeight = appliedMode.m_Height;
++					pProfile->m_nScreenDepth = appliedMode.m_BitDepth;
++				}
++				else
++				{
++					pProfile->m_nScreenWidth = nOldProfileWidth;
++					pProfile->m_nScreenHeight = nOldProfileHeight;
++					pProfile->m_nScreenDepth = nOldProfileDepth;
++				}
++
++				if (!bNonResolutionRestartRequested)
++					nATFlags &= ~eAT_RestartRender;
++			}
+@@ -766,0 +908,10 @@ bool CPerformanceMgr::ApplyQueuedConsoleChanges(bool bApplyResolution)
++		else if (!bNonResolutionRestartRequested)
++			nATFlags &= ~eAT_RestartRender;
++	}
++	else if (bApplyResolution && bCurrentModeValid)
++	{
++		// With no explicit resolution request, synchronize every persistence and
++		// RestartRender owner to the renderer's actual mode.  This also protects a
++		// no-change visit to the Performance screen from saving bootstrap values.
++		WriteConsoleInt("ScreenWidth", currentMode.m_Width);
++		WriteConsoleInt("ScreenHeight", currentMode.m_Height);
+@@ -784,0 +936,4 @@ void CPerformanceMgr::RevertQueuedConsoleChanges()
++	m_bResolutionWidthRequested = false;
++	m_bResolutionHeightRequested = false;
++	m_fResolutionWidthRequest = 0.0f;
++	m_fResolutionHeightRequest = 0.0f;
+diff --git base/ClientShellDLL/PerformanceMgr.h modified/ClientShellDLL/PerformanceMgr.h
+index e7de1c220dcce69c366ca097ae08034b7a1f9ed7..f632b4d08c2010fea8a3fc86348e39ee0a371953 100644
+--- base/ClientShellDLL/PerformanceMgr.h
++++ modified/ClientShellDLL/PerformanceMgr.h
+@@ -163,0 +164,8 @@ protected:
++	// SetQueuedConsoleVariable may suppress a no-op queue entry.  Keep the
++	// paired resolution request separately so changes that retain one dimension
++	// (for example 3440x1440 to 2560x1440) still apply atomically.
++	bool m_bResolutionWidthRequested;
++	bool m_bResolutionHeightRequested;
++	float m_fResolutionWidthRequest;
++	float m_fResolutionHeightRequest;
++
+diff --git base/ClientShellDLL/PlayerCamera.cpp modified/ClientShellDLL/PlayerCamera.cpp
+index d283ce5cdcbeaef0daa050d07424da5d2b0e8ff1..190c47152b159529e0e3009de080dba02d131466 100644
+--- base/ClientShellDLL/PlayerCamera.cpp
++++ modified/ClientShellDLL/PlayerCamera.cpp
+@@ -34,0 +35,2 @@
++#include "FearMoreCameraProbe.h"
++#include "FearMoreControllerMgr.h"
+@@ -419 +421,5 @@ void CPlayerCamera::RenderCamera( )
+-	g_pLTClient->GetRenderer()->RenderCamera( m_hCamera );
++	const FearMoreCameraProbe::CameraRenderToken cameraProbe =
++		FearMoreCameraProbe::BeginMainCameraRender( m_hCamera, static_cast<int>( GetCameraMode() ),
++			g_vtCameraPixelDouble.GetFloat() != 0.0f, bRenderedToTarget );
++	const LTRESULT nRenderResult = g_pLTClient->GetRenderer()->RenderCamera( m_hCamera );
++	FearMoreCameraProbe::EndMainCameraRender( cameraProbe, nRenderResult );
+@@ -533,0 +540,2 @@ void CPlayerCamera::Update( )
++	{
++		UpdateScriptedLureCinematicSideMask( false );
+@@ -534,0 +543 @@ void CPlayerCamera::Update( )
++	}
+@@ -539 +548,2 @@ void CPlayerCamera::Update( )
+-	UpdateCinematicCameras( );
++	const bool bLiveCinematicCamera = UpdateCinematicCameras( );
++	UpdateScriptedLureCinematicSideMask( bLiveCinematicCamera );
+@@ -1033,0 +1044 @@ void CPlayerCamera::UpdateFirstPerson( )
++	CFearMoreControllerMgr::Instance().SetRumble( fControllerMotors[0], fControllerMotors[1] );
+@@ -1217,0 +1229,46 @@ bool CPlayerCamera::UpdateCinematicCameras()
++// ----------------------------------------------------------------------- //
++//
++//	ROUTINE:	CPlayerCamera::UpdateScriptedLureCinematicSideMask()
++//
++//	PURPOSE:	Bound authored first-person PlayerLure presentations without
++//				changing interactive lures or CameraFX type semantics.
++//
++// ----------------------------------------------------------------------- //
++
++void CPlayerCamera::UpdateScriptedLureCinematicSideMask( bool bLiveCinematicCamera )
++{
++	FearMoreCameraProbe::CinematicSideMaskState diagnosticState;
++	diagnosticState.m_nCameraMode = static_cast<int>( GetCameraMode() );
++	diagnosticState.m_bLiveCinematicCamera = bLiveCinematicCamera;
++
++	PlayerLureFX* pPlayerLureFX = NULL;
++	CVehicleMgr* pVehicleMgr = g_pMoveMgr ? g_pMoveMgr->GetVehicleMgr() : NULL;
++	if( pVehicleMgr && pVehicleMgr->IsVehiclePhysics() )
++	{
++		diagnosticState.m_bVehiclePhysics = true;
++		diagnosticState.m_nPlayerLureId = pVehicleMgr->GetPlayerLureId();
++		pPlayerLureFX = PlayerLureFX::GetPlayerLureFX( diagnosticState.m_nPlayerLureId );
++	}
++
++	if( pPlayerLureFX )
++	{
++		diagnosticState.m_bPlayerLureFxValid = true;
++		diagnosticState.m_nCameraFreedom = static_cast<int>( pPlayerLureFX->GetCameraFreedom() );
++		diagnosticState.m_bAllowWeapon = pPlayerLureFX->GetAllowWeapon();
++		diagnosticState.m_bAllowSwitchWeapon = pPlayerLureFX->GetAllowSwitchWeapon();
++		diagnosticState.m_bRetainOffsets = pPlayerLureFX->GetRetainOffsets();
++		diagnosticState.m_bTrackPitch = pPlayerLureFX->GetTrackPitch();
++		diagnosticState.m_bTrackYaw = pPlayerLureFX->GetTrackYaw();
++		diagnosticState.m_bAllowBodyRotation = pPlayerLureFX->GetAllowBodyRotation();
++	}
++
++	diagnosticState.m_bPlayingSpecial = CPlayerBodyMgr::Instance().IsPlayingSpecial();
++	diagnosticState.m_bAuthoredCrosshairEnabled = !g_pCrosshair || g_pCrosshair->IsEnabled();
++	diagnosticState.m_bSideMaskRequested =
++		( m_hTarget && !bLiveCinematicCamera && pPlayerLureFX &&
++		  diagnosticState.m_bPlayingSpecial && !diagnosticState.m_bAuthoredCrosshairEnabled );
++
++	g_pInterfaceMgr->SetCinematicSideMask( diagnosticState.m_bSideMaskRequested );
++	FearMoreCameraProbe::RecordCinematicSideMaskState( diagnosticState );
++}
++
+@@ -1391,0 +1449,4 @@ void CPlayerCamera::SetTargetObject( HOBJECT hTarget )
++	if( !m_hTarget )
++	{
++		UpdateScriptedLureCinematicSideMask( false );
++	}
+diff --git base/ClientShellDLL/PlayerCamera.h modified/ClientShellDLL/PlayerCamera.h
+index 66b1ffcb26f5c86ecb92697ed1020d6367272208..8b32e747a6bfdae0841de3a772a2948f8c38e680 100644
+--- base/ClientShellDLL/PlayerCamera.h
++++ modified/ClientShellDLL/PlayerCamera.h
+@@ -258,0 +259,3 @@ class CPlayerCamera
++		// Bound only authored, scripted PlayerLure presentations on ultrawide outputs.
++		void UpdateScriptedLureCinematicSideMask( bool bLiveCinematicCamera );
++
+@@ -442 +444,0 @@ class CPlayerCamera
+-
+diff --git base/ClientShellDLL/ProfileMgr.cpp modified/ClientShellDLL/ProfileMgr.cpp
+index 0360664d2c71fbb4aee503f330ffc25f98df5185..fa4260c44469420da17b64ac252e533ec29be602 100644
+--- base/ClientShellDLL/ProfileMgr.cpp
++++ modified/ClientShellDLL/ProfileMgr.cpp
+@@ -38,0 +39,2 @@
++#include "FearMoreCorpsePersistence.h"
++#include "FearMoreDefaultBindingResolver.h"
+@@ -229 +231,13 @@ void SaveSettings()
+-									"DisableSound" };
++									"DisableSound",
++									"EnhancedGore",
++									FearMoreCorpsePersistence::kSettingName,
++									"FearMoreHDTextures",
++									"FearMoreRendererQuality",
++									"FearMoreEffectsTargetQuality",
++									"FearMorePostProcess",
++									"HUDSafeAreaFullWidth",
++									"FearMoreControllerEnabled",
++									"FearMoreControllerDeadZone",
++									"FearMoreControllerInvertY",
++									"FearMoreControllerRumble",
++									"GPadAimSensitivity" };
+@@ -538 +552 @@ void CUserProfile::Load(bool bLoadDefaults, bool bLoadDisplaySettings)
+-	LoadControls(hDB);
++	LoadControls(hDB, bLoadDefaults);
+@@ -554,0 +569,6 @@ void CUserProfile::Load(bool bLoadDefaults, bool bLoadDisplaySettings)
++
++			// A new profile uses the same queued Performance path as an existing
++			// profile.  Apply the quality defaults now while explicitly deferring the
++			// display mode, so the retail resolution entry cannot remain pending until
++			// the user later leaves the Performance screen.
++			CPerformanceMgr::Instance().ApplyQueuedConsoleChanges(false);
+@@ -639 +659 @@ void CUserProfile::LoadVersion(HDATABASE hDB)
+-void CUserProfile::LoadControls(HDATABASE hDB)
++void CUserProfile::LoadControls(HDATABASE hDB, bool bUseDefaultBindingFallback)
+@@ -728 +748 @@ void CUserProfile::LoadControls(HDATABASE hDB)
+-	ApplyBindings();
++	ApplyBindings(bUseDefaultBindingFallback);
+@@ -1344 +1364 @@ uint8 CUserProfile::GetWeaponPriority(HWEAPON hWpn) const
+-void CUserProfile::ApplyBindings()
++void CUserProfile::ApplyBindings(bool bUseDefaultBindingFallback)
+@@ -1357,8 +1377,15 @@ void CUserProfile::ApplyBindings()
+-			// Look up the device by this name
+-			uint32 nDeviceIndex;
+-			if (g_pLTInput->FindDeviceByName(iCurBinding->m_sDeviceName.c_str(), &nDeviceIndex) != LT_OK)
+-				continue;
+-  
+-			// Look up the object on the device
+-			uint32 nObjectIndex;
+-			if (g_pLTInput->FindDeviceObjectByName(nDeviceIndex, iCurBinding->m_sObjectName.c_str(), &nObjectIndex) != LT_OK)
++			// Preserve the original exact-name behavior first.  Only stock-default
++			// loads may fall back to stable DirectInput control codes, because object
++			// names such as Space and Shift are localized by some Windows input stacks.
++			uint32 nDeviceIndex = ILTInput::k_InvalidIndex;
++			uint32 nObjectIndex = ILTInput::k_InvalidIndex;
++			const bool bExactDevice =
++				(g_pLTInput->FindDeviceByName(iCurBinding->m_sDeviceName.c_str(), &nDeviceIndex) == LT_OK);
++			const bool bExactObject = bExactDevice &&
++				(g_pLTInput->FindDeviceObjectByName(nDeviceIndex, iCurBinding->m_sObjectName.c_str(), &nObjectIndex) == LT_OK);
++
++			if( !bExactObject &&
++				(!bUseDefaultBindingFallback ||
++				 !FearMoreDefaultBindingResolver::ResolveKeyboardObject(g_pLTInput,
++					iCurBinding->m_sObjectName.c_str(), &nDeviceIndex, &nObjectIndex)) )
++			{
+@@ -1365,0 +1393 @@ void CUserProfile::ApplyBindings()
++			}
+@@ -2214 +2242 @@ bool CUserProfile::RestoreDefaults(uint8 nFlags)
+-		LoadControls(hDB);
++		LoadControls(hDB, true);
+diff --git base/ClientShellDLL/ProfileMgr.h modified/ClientShellDLL/ProfileMgr.h
+index 005aa9b926b13011af25601ea1db59d60aa975b6..1ab97c8f7b7183a2128b445293178269f42ffa03 100644
+--- base/ClientShellDLL/ProfileMgr.h
++++ modified/ClientShellDLL/ProfileMgr.h
+@@ -25,0 +26,3 @@ extern CProfileMgr* g_pProfileMgr;
++// Persist the global launch/display settings stored in settings.cfg.
++void SaveSettings();
++
+@@ -154 +157 @@ public:
+-	void		ApplyBindings();
++	void		ApplyBindings(bool bUseDefaultBindingFallback = false);
+@@ -353 +356 @@ private:
+-	void		LoadControls(HDATABASE hDB);
++	void		LoadControls(HDATABASE hDB, bool bUseDefaultBindingFallback = false);
+diff --git base/ClientShellDLL/RenderTargetGroupFx.cpp modified/ClientShellDLL/RenderTargetGroupFx.cpp
+index 58cf57a430c3846f9fdd2f5786fc006cb700bcd4..a2a11c4a0cf2035723c485462ee1c9d1fa1fffda 100644
+--- base/ClientShellDLL/RenderTargetGroupFx.cpp
++++ modified/ClientShellDLL/RenderTargetGroupFx.cpp
+@@ -208,2 +208,7 @@ bool CRenderTargetGroupFX::CreateRenderTarget(uint32 nLOD)
+-	//now that we have our options, attempt to create the render target
+-	if(g_pLTClient->GetRenderer()->CreateRenderTarget(m_nDimensions[nLOD].x, m_nDimensions[nLOD].y, nRTFlags, m_hRenderTarget) != LT_OK)
++	// These authored targets feed mirror/refraction materials whose projection and
++	// sampling contract is tied to the authored dimensions.  Increasing only the
++	// allocation size produces valid targets with invalid scene sampling, so keep
++	// this owner at its established LOD dimensions.  The independently managed
++	// volumetric shadow depth target is the only proven Effects Target: High owner.
++	if(g_pLTClient->GetRenderer()->CreateRenderTarget(
++		m_nDimensions[nLOD].x, m_nDimensions[nLOD].y, nRTFlags, m_hRenderTarget) != LT_OK)
+diff --git base/ClientShellDLL/ScreenDisplay.cpp modified/ClientShellDLL/ScreenDisplay.cpp
+index 52b6740fed989cc43bcf97519f1d713c89583746..7413ad9f91973dc4f46fecfe85a564551907f949 100644
+--- base/ClientShellDLL/ScreenDisplay.cpp
++++ modified/ClientShellDLL/ScreenDisplay.cpp
+@@ -15,0 +16 @@
++#include "FearMoreGraphicsSettings.h"
+@@ -21,0 +23 @@ extern CGameClientShell* g_pGameClientShell;
++#define CMD_HUD_PLACEMENT (CMD_CUSTOM + 2)
+@@ -139,0 +142,6 @@ CScreenDisplay::CScreenDisplay() :
++	m_nFearMoreRendererQuality(FearMoreGraphicsSettings::eRendererQuality_Native),
++	m_nFearMoreEffectsTargetQuality(FearMoreGraphicsSettings::eEffectsTargetQuality_Native),
++	m_nFearMorePostProcess(FearMoreGraphicsSettings::ePostProcess_Off),
++	m_bHUDSafeAreaFullWidth(false),
++	m_bInitialHUDSafeAreaFullWidth(false),
++	m_bUpdatingGraphicsControls(false),
+@@ -147,0 +156 @@ CScreenDisplay::CScreenDisplay() :
++	m_pHUDPlacement		= NULL;
+@@ -195,0 +205,66 @@ bool CScreenDisplay::Build()
++	const FearMoreGraphicsSettings::SOptionDescriptor& rendererQuality =
++		FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_RendererQuality);
++	CLTGUICycleCtrl_create rendererQualityCreate;
++	rendererQualityCreate.nHeaderWidth = kGap;
++	rendererQualityCreate.rnBaseRect.m_vMin.Init();
++	rendererQualityCreate.rnBaseRect.m_vMax = LTVector2n(kTotalWidth,g_pLayoutDB->GetInt32(m_hLayout,LDB_ScreenFontSize));
++	rendererQualityCreate.szHelpID = rendererQuality.m_pszHelpId;
++	rendererQualityCreate.pnValue = &m_nFearMoreRendererQuality;
++	CLTGUICycleCtrl* pRendererQuality = AddCycle(rendererQuality.m_pwszLabel,rendererQualityCreate);
++	pRendererQuality->AddString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_RendererQuality,
++		FearMoreGraphicsSettings::eRendererQuality_Native));
++	pRendererQuality->AddString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_RendererQuality,
++		FearMoreGraphicsSettings::eRendererQuality_2xDownsample));
++
++	const FearMoreGraphicsSettings::SOptionDescriptor& effectsTargetQuality =
++		FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_EffectsTargetQuality);
++	CLTGUICycleCtrl_create effectsTargetQualityCreate;
++	effectsTargetQualityCreate.nHeaderWidth = kGap;
++	effectsTargetQualityCreate.rnBaseRect.m_vMin.Init();
++	effectsTargetQualityCreate.rnBaseRect.m_vMax = LTVector2n(kTotalWidth,g_pLayoutDB->GetInt32(m_hLayout,LDB_ScreenFontSize));
++	effectsTargetQualityCreate.szHelpID = effectsTargetQuality.m_pszHelpId;
++	effectsTargetQualityCreate.pnValue = &m_nFearMoreEffectsTargetQuality;
++	CLTGUICycleCtrl* pEffectsTargetQuality = AddCycle(effectsTargetQuality.m_pwszLabel,effectsTargetQualityCreate);
++	pEffectsTargetQuality->AddString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_EffectsTargetQuality,
++		FearMoreGraphicsSettings::eEffectsTargetQuality_Native));
++	pEffectsTargetQuality->AddString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_EffectsTargetQuality,
++		FearMoreGraphicsSettings::eEffectsTargetQuality_High));
++
++	const FearMoreGraphicsSettings::SOptionDescriptor& postProcess =
++		FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_PostProcess);
++	CLTGUICycleCtrl_create postProcessCreate;
++	postProcessCreate.nHeaderWidth = kGap;
++	postProcessCreate.rnBaseRect.m_vMin.Init();
++	postProcessCreate.rnBaseRect.m_vMax = LTVector2n(kTotalWidth,g_pLayoutDB->GetInt32(m_hLayout,LDB_ScreenFontSize));
++	postProcessCreate.szHelpID = postProcess.m_pszHelpId;
++	postProcessCreate.pnValue = &m_nFearMorePostProcess;
++	CLTGUICycleCtrl* pPostProcess = AddCycle(postProcess.m_pwszLabel,postProcessCreate);
++	pPostProcess->AddString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_PostProcess,
++		FearMoreGraphicsSettings::ePostProcess_Off));
++	pPostProcess->AddString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_PostProcess,
++		FearMoreGraphicsSettings::ePostProcess_CAS));
++
++	const FearMoreGraphicsSettings::SOptionDescriptor& hudPlacement =
++		FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_HUDPlacement);
++	CLTGUIToggle_create hudPlacementCreate;
++	hudPlacementCreate.rnBaseRect.m_vMin.Init();
++	hudPlacementCreate.rnBaseRect.m_vMax = LTVector2n(kTotalWidth,g_pLayoutDB->GetInt32(m_hLayout,LDB_ScreenFontSize));
++	hudPlacementCreate.szHelpID = hudPlacement.m_pszHelpId;
++	hudPlacementCreate.pbValue = &m_bHUDSafeAreaFullWidth;
++	hudPlacementCreate.nHeaderWidth = kGap;
++	hudPlacementCreate.pCommandHandler = this;
++	hudPlacementCreate.nCommandID = CMD_HUD_PLACEMENT;
++	m_pHUDPlacement = AddToggle(hudPlacement.m_pwszLabel,hudPlacementCreate);
++	m_pHUDPlacement->SetOffString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_HUDPlacement,
++		FearMoreGraphicsSettings::eHUDPlacement_CenteredSafeArea));
++	m_pHUDPlacement->SetOnString(FearMoreGraphicsSettings::GetOptionValueLabel(
++		FearMoreGraphicsSettings::eOption_HUDPlacement,
++		FearMoreGraphicsSettings::eHUDPlacement_FullWidth));
++
+@@ -260,9 +335 @@ bool CScreenDisplay::Build()
+-	uint32 nFontHeight = g_pLayoutDB->GetInt32(m_hLayout,LDB_ScreenAdditionalInt,0);
+-	cs.rnBaseRect = g_pLayoutDB->GetRect(m_hLayout,LDB_ScreenFrameRect,2);
+-	m_pWarning = AddTextItem("ScreenDisplay_ResolutionWarning",cs,true,NULL,nFontHeight);
+-	m_pWarning->SetWordWrap(true);
+-	m_pWarning->Show(false);
+-
+-
+-
+- 	// Make sure to call the base class
++	// Make sure to call the base class
+@@ -290,0 +358,18 @@ uint32 CScreenDisplay::OnCommand(uint32 dwCommand, uint32 dwParam1, uint32 dwPar
++
++	case CMD_HUD_PLACEMENT:
++		if (!m_bUpdatingGraphicsControls && m_pHUDPlacement)
++		{
++			m_pHUDPlacement->UpdateData(true);
++			const FearMoreGraphicsSettings::SOptionDescriptor& hudPlacement =
++				FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_HUDPlacement);
++			const int nHUDPlacement = FearMoreGraphicsSettings::ClampOptionValue(
++				FearMoreGraphicsSettings::eOption_HUDPlacement,
++				m_bHUDSafeAreaFullWidth ? 1 : 0);
++			m_bHUDSafeAreaFullWidth = (nHUDPlacement == FearMoreGraphicsSettings::eHUDPlacement_FullWidth);
++			if (GetConsoleInt(hudPlacement.m_pszConsoleVariable,hudPlacement.m_nDefaultValue) != nHUDPlacement)
++			{
++				WriteConsoleInt(hudPlacement.m_pszConsoleVariable,nHUDPlacement);
++				g_pInterfaceMgr->ScreenDimsChanged();
++			}
++		}
++		return 1;
+@@ -350,7 +434,0 @@ void CScreenDisplay::SetupResolutionCtrl()
+-		uint32 testWidth = (dwHeight * 4 / 3);
+-		if (dwWidth != testWidth)
+-		{
+-			LTStrCat(wszBuffer,L" *",LTARRAYSIZE(wszBuffer));
+-		}
+-
+-
+@@ -508,0 +587,26 @@ void CScreenDisplay::OnFocus(bool bFocus)
++		const FearMoreGraphicsSettings::SOptionDescriptor& rendererQuality =
++			FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_RendererQuality);
++		m_nFearMoreRendererQuality = (uint8)FearMoreGraphicsSettings::ClampOptionValue(
++			FearMoreGraphicsSettings::eOption_RendererQuality,
++			GetConsoleInt(rendererQuality.m_pszConsoleVariable,rendererQuality.m_nDefaultValue));
++
++		const FearMoreGraphicsSettings::SOptionDescriptor& effectsTargetQuality =
++			FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_EffectsTargetQuality);
++		m_nFearMoreEffectsTargetQuality = (uint8)FearMoreGraphicsSettings::ClampOptionValue(
++			FearMoreGraphicsSettings::eOption_EffectsTargetQuality,
++			GetConsoleInt(effectsTargetQuality.m_pszConsoleVariable,effectsTargetQuality.m_nDefaultValue));
++
++		const FearMoreGraphicsSettings::SOptionDescriptor& postProcess =
++			FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_PostProcess);
++		m_nFearMorePostProcess = (uint8)FearMoreGraphicsSettings::ClampOptionValue(
++			FearMoreGraphicsSettings::eOption_PostProcess,
++			GetConsoleInt(postProcess.m_pszConsoleVariable,postProcess.m_nDefaultValue));
++
++		const FearMoreGraphicsSettings::SOptionDescriptor& hudPlacement =
++			FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_HUDPlacement);
++		m_bHUDSafeAreaFullWidth = (FearMoreGraphicsSettings::ClampOptionValue(
++			FearMoreGraphicsSettings::eOption_HUDPlacement,
++			GetConsoleInt(hudPlacement.m_pszConsoleVariable,hudPlacement.m_nDefaultValue)) ==
++			FearMoreGraphicsSettings::eHUDPlacement_FullWidth);
++		m_bInitialHUDSafeAreaFullWidth = m_bHUDSafeAreaFullWidth;
++
+@@ -537 +641,3 @@ void CScreenDisplay::OnFocus(bool bFocus)
+-        UpdateData(false);
++		m_bUpdatingGraphicsControls = true;
++		UpdateData(false);
++		m_bUpdatingGraphicsControls = false;
+@@ -560,0 +667,26 @@ void CScreenDisplay::OnFocus(bool bFocus)
++			const FearMoreGraphicsSettings::SOptionDescriptor& rendererQuality =
++				FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_RendererQuality);
++			m_nFearMoreRendererQuality = (uint8)FearMoreGraphicsSettings::ClampOptionValue(
++				FearMoreGraphicsSettings::eOption_RendererQuality,m_nFearMoreRendererQuality);
++			WriteConsoleInt(rendererQuality.m_pszConsoleVariable,(int)m_nFearMoreRendererQuality);
++
++			const FearMoreGraphicsSettings::SOptionDescriptor& effectsTargetQuality =
++				FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_EffectsTargetQuality);
++			m_nFearMoreEffectsTargetQuality = (uint8)FearMoreGraphicsSettings::ClampOptionValue(
++				FearMoreGraphicsSettings::eOption_EffectsTargetQuality,m_nFearMoreEffectsTargetQuality);
++			WriteConsoleInt(effectsTargetQuality.m_pszConsoleVariable,(int)m_nFearMoreEffectsTargetQuality);
++
++			const FearMoreGraphicsSettings::SOptionDescriptor& postProcess =
++				FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_PostProcess);
++			m_nFearMorePostProcess = (uint8)FearMoreGraphicsSettings::ClampOptionValue(
++				FearMoreGraphicsSettings::eOption_PostProcess,m_nFearMorePostProcess);
++			WriteConsoleInt(postProcess.m_pszConsoleVariable,(int)m_nFearMorePostProcess);
++
++			const FearMoreGraphicsSettings::SOptionDescriptor& hudPlacement =
++				FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_HUDPlacement);
++			const int nHUDPlacement = FearMoreGraphicsSettings::ClampOptionValue(
++				FearMoreGraphicsSettings::eOption_HUDPlacement,
++				m_bHUDSafeAreaFullWidth ? 1 : 0);
++			m_bHUDSafeAreaFullWidth = (nHUDPlacement == FearMoreGraphicsSettings::eHUDPlacement_FullWidth);
++			WriteConsoleInt(hudPlacement.m_pszConsoleVariable,nHUDPlacement);
++
+@@ -577,0 +710,14 @@ void CScreenDisplay::OnFocus(bool bFocus)
++		else
++		{
++			const FearMoreGraphicsSettings::SOptionDescriptor& hudPlacement =
++				FearMoreGraphicsSettings::GetOptionDescriptor(FearMoreGraphicsSettings::eOption_HUDPlacement);
++			const int nInitialHUDPlacement = m_bInitialHUDSafeAreaFullWidth ?
++				FearMoreGraphicsSettings::eHUDPlacement_FullWidth :
++				FearMoreGraphicsSettings::eHUDPlacement_CenteredSafeArea;
++			if (GetConsoleInt(hudPlacement.m_pszConsoleVariable,hudPlacement.m_nDefaultValue) != nInitialHUDPlacement)
++			{
++				WriteConsoleInt(hudPlacement.m_pszConsoleVariable,nInitialHUDPlacement);
++				g_pInterfaceMgr->ScreenDimsChanged();
++			}
++			m_bHUDSafeAreaFullWidth = m_bInitialHUDSafeAreaFullWidth;
++		}
+@@ -585,0 +732,12 @@ void CScreenDisplay::OnFocus(bool bFocus)
++void CScreenDisplay::GetHelpString(const char* szHelpId, uint16 nControlIndex, wchar_t *buffer, int bufLen)
++{
++	const wchar_t* pHelpText = FearMoreGraphicsSettings::GetHelpText(szHelpId);
++	if (pHelpText)
++	{
++		LTStrCpy(buffer,pHelpText,bufLen);
++		return;
++	}
++
++	CBaseScreen::GetHelpString(szHelpId,nControlIndex,buffer,bufLen);
++}
++
+@@ -782,13 +939,0 @@ void CScreenDisplay::UpdateResolutionColor()
+-	ScreenDisplayResolution res = GetCurrentSelectedResolution();
+-	uint32 testWidth = (res.m_dwHeight * 4 / 3);
+-	if (res.m_dwWidth != testWidth)
+-	{
+-		m_pWarning->Show(true);
+-	}
+-	else
+-	{
+-		m_pWarning->Show(false);
+-
+-	}
+-
+-
+@@ -796 +940,0 @@ void CScreenDisplay::UpdateResolutionColor()
+-
+diff --git base/ClientShellDLL/ScreenDisplay.h modified/ClientShellDLL/ScreenDisplay.h
+index ae66a7fbfda0966ffa51e85eb5d39e445bfbf7af..aad5330134005ce23f7ad24fa058bf54c070a708 100644
+--- base/ClientShellDLL/ScreenDisplay.h
++++ modified/ClientShellDLL/ScreenDisplay.h
+@@ -64,0 +65 @@ public:
++	void	GetHelpString(const char* szHelpId, uint16 nControlIndex, wchar_t *buffer, int bufLen);
+@@ -102,0 +104,6 @@ private:
++	uint8							m_nFearMoreRendererQuality;
++	uint8							m_nFearMoreEffectsTargetQuality;
++	uint8							m_nFearMorePostProcess;
++	bool							m_bHUDSafeAreaFullWidth;
++	bool							m_bInitialHUDSafeAreaFullWidth;
++	bool							m_bUpdatingGraphicsControls;
+@@ -107 +114 @@ private:
+-	CLTGUITextCtrl					*m_pWarning;
++	CLTGUIToggle						*m_pHUDPlacement;
+diff --git base/ClientShellDLL/ScreenGame.cpp modified/ClientShellDLL/ScreenGame.cpp
+index 82be1e8bd29b5f6aee656faecd1d93c48c476256..7b601e6f7dead2e3f1fce6e5aad7ad22b9691fb6 100644
+--- base/ClientShellDLL/ScreenGame.cpp
++++ modified/ClientShellDLL/ScreenGame.cpp
+@@ -17,0 +18 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -26,0 +28,5 @@ namespace
++	const char* const kEnhancedGoreHelpId = "FearMoreEnhancedGore_Help";
++	const char* const kCorpsePersistenceHelpId = "FearMoreCorpsePersistence_Help";
++	const char* const kHDTexturesOffHelpId = "FearMoreHDTextures_Off_Help";
++	const char* const kHDTexturesLiteHelpId = "FearMoreHDTextures_Lite_Help";
++	const char* const kHDTexturesFullHelpId = "FearMoreHDTextures_Full_Help";
+@@ -44,0 +51,2 @@ CScreenGame::CScreenGame()
++	m_bEnhancedGore = false;
++	m_bCorpsePersistence = false;
+@@ -46,0 +55 @@ CScreenGame::CScreenGame()
++	m_nHDTextures = 0;
+@@ -55,0 +65 @@ CScreenGame::CScreenGame()
++	m_pHDTexturesCtrl = NULL;
+@@ -122,0 +133,6 @@ bool CScreenGame::Build()
++
++		tcs.szHelpID = kEnhancedGoreHelpId;
++		tcs.pbValue = &m_bEnhancedGore;
++		CLTGUIToggle *pEnhancedGore = AddToggle(L"Enhanced gore", tcs);
++		pEnhancedGore->SetOnString(szYes);
++		pEnhancedGore->SetOffString(szNo);
+@@ -124,0 +141,22 @@ bool CScreenGame::Build()
++	tcs.szHelpID = kCorpsePersistenceHelpId;
++	tcs.pbValue = &m_bCorpsePersistence;
++	tcs.nHeaderWidth = kGap;
++	CLTGUIToggle *pCorpsePersistence = AddToggle(L"Corpse persistence", tcs);
++	pCorpsePersistence->SetOnString(szYes);
++	pCorpsePersistence->SetOffString(szNo);
++
++	// HD texture content is mounted by the launcher and cannot be changed while
++	// the current process is running.  Keep the selected mode visible in-game,
++	// but make its restart requirement explicit.
++	CLTGUICycleCtrl_create hdTexturesCreate;
++	hdTexturesCreate.szHelpID = kHDTexturesOffHelpId;
++	hdTexturesCreate.pCommandHandler = this;
++	hdTexturesCreate.nCommandID = CMD_UPDATE;
++	hdTexturesCreate.pnValue = &m_nHDTextures;
++	hdTexturesCreate.nHeaderWidth = kGap;
++	hdTexturesCreate.rnBaseRect.m_vMin.Init();
++	hdTexturesCreate.rnBaseRect.m_vMax = LTVector2n(m_ScreenRect.GetWidth(),g_pLayoutDB->GetInt32(m_hLayout,LDB_ScreenFontSize));
++	m_pHDTexturesCtrl = AddCycle(L"HD textures", hdTexturesCreate);
++	m_pHDTexturesCtrl->AddString(LoadString("IDS_OFF"));
++	m_pHDTexturesCtrl->AddString(L"Stable Lite (recommended)");
++	m_pHDTexturesCtrl->AddString(L"Full v2.0.2 (experimental)");
+@@ -240,0 +279,10 @@ uint32 CScreenGame::OnCommand(uint32 dwCommand, uint32 dwParam1, uint32 dwParam2
++	case CMD_UPDATE:
++		{
++			if (m_pHDTexturesCtrl)
++			{
++				m_pHDTexturesCtrl->UpdateData(true);
++				UpdateHDTextureHelpId();
++				UpdateHelpText();
++			}
++			break;
++		}
+@@ -256,0 +305,2 @@ void CScreenGame::OnFocus(bool bFocus)
++		m_bEnhancedGore = (GetConsoleInt("EnhancedGore", 0) == 1);
++		m_bCorpsePersistence = (GetConsoleInt(FearMoreCorpsePersistence::kSettingName, 0) == 1);
+@@ -258,0 +309 @@ void CScreenGame::OnFocus(bool bFocus)
++		m_nHDTextures = (uint8)LTCLAMP(GetConsoleInt("FearMoreHDTextures", 0), 0, 2);
+@@ -289 +340,2 @@ void CScreenGame::OnFocus(bool bFocus)
+-        UpdateData(false);
++		UpdateData(false);
++		UpdateHDTextureHelpId();
+@@ -297,0 +350,2 @@ void CScreenGame::OnFocus(bool bFocus)
++		WriteConsoleInt("EnhancedGore", m_bEnhancedGore ? 1 : 0);
++		WriteConsoleInt(FearMoreCorpsePersistence::kSettingName, m_bCorpsePersistence ? 1 : 0);
+@@ -299,0 +354 @@ void CScreenGame::OnFocus(bool bFocus)
++		WriteConsoleInt("FearMoreHDTextures", (int)LTCLAMP(m_nHDTextures, 0, 2));
+@@ -319,0 +375 @@ void CScreenGame::OnFocus(bool bFocus)
++		SaveSettings();
+@@ -324,0 +381,65 @@ void CScreenGame::OnFocus(bool bFocus)
++void CScreenGame::UpdateHDTextureHelpId()
++{
++	if (!m_pHDTexturesCtrl)
++	{
++		return;
++	}
++
++	const char* szHelpId = kHDTexturesOffHelpId;
++	if (m_nHDTextures == 1)
++	{
++		szHelpId = kHDTexturesLiteHelpId;
++	}
++	else if (m_nHDTextures == 2)
++	{
++		szHelpId = kHDTexturesFullHelpId;
++	}
++	m_pHDTexturesCtrl->SetHelpID(szHelpId);
++}
++
++void CScreenGame::GetHelpString(const char* szHelpId, uint16 nControlIndex, wchar_t *buffer, int bufLen)
++{
++	if (LTStrIEquals(szHelpId, kEnhancedGoreHelpId))
++	{
++		LTStrCpy(buffer, L"Adds bounded postmortem limb damage using F.E.A.R.'s original gore assets. Standard Gore must also be Yes. Changes apply on the next world load.", bufLen);
++		return;
++	}
++
++	if (LTStrIEquals(szHelpId, kCorpsePersistenceHelpId))
++	{
++		LTStrCpy(buffer,
++			L"Single player only. Keeps up to 48 non-permanent corpses level-wide and 24 within 4096 units; "
++			L"farther bodies fade first. Off uses F.E.A.R.'s original limits. This does not persist decals, debris, or world state. "
++			L"Changes apply on the next world load.",
++			bufLen);
++		return;
++	}
++
++	if (LTStrIEquals(szHelpId, kHDTexturesOffHelpId) ||
++		LTStrIEquals(szHelpId, kHDTexturesLiteHelpId) ||
++		LTStrIEquals(szHelpId, kHDTexturesFullHelpId))
++	{
++		const int nSelectedMode = (int)LTCLAMP(m_nHDTextures, 0, 2);
++		const int nActiveMode = LTCLAMP(GetConsoleInt("FearMoreHDTexturesActive", 0), 0, 2);
++		if (nSelectedMode != nActiveMode)
++		{
++			LTStrCpy(buffer, L"The selected HD texture mode applies on the next launch. Exit and restart through Launch FearMore.", bufLen);
++		}
++		else if (nActiveMode == 1)
++		{
++			LTStrCpy(buffer, L"Stable Lite is active. It overlays Rivarez's official reduced textures for better transition stability with a small quality tradeoff.", bufLen);
++		}
++		else if (nActiveMode == 2)
++		{
++			LTStrCpy(buffer, L"Full v2.0.2 is experimental. It has reproduced a d3dx9 crash during a level transition; Stable Lite is recommended.", bufLen);
++		}
++		else
++		{
++			LTStrCpy(buffer, L"Optional HD textures are off. Select Stable Lite and restart through Launch FearMore to use the recommended pack.", bufLen);
++		}
++		return;
++	}
++
++	CBaseScreen::GetHelpString(szHelpId, nControlIndex, buffer, bufLen);
++}
++
+diff --git base/ClientShellDLL/ScreenGame.h modified/ClientShellDLL/ScreenGame.h
+index aee816d40450ceb92a0df25514ecc563fb432ed5..b1421846893d012bc087c978f1207fb4365b373b 100644
+--- base/ClientShellDLL/ScreenGame.h
++++ modified/ClientShellDLL/ScreenGame.h
+@@ -28,0 +29 @@ public:
++	void	GetHelpString(const char* szHelpId, uint16 nControlIndex, wchar_t *buffer, int bufLen);
+@@ -34,0 +36 @@ protected:
++	void	UpdateHDTextureHelpId();
+@@ -38,0 +41,2 @@ protected:
++	bool				m_bEnhancedGore;
++	bool				m_bCorpsePersistence;
+@@ -41,0 +46 @@ protected:
++	uint8				m_nHDTextures;
+@@ -52,0 +58 @@ protected:
++	CLTGUICycleCtrl		*m_pHDTexturesCtrl;
+diff --git base/ClientShellDLL/ScreenJoystick.cpp modified/ClientShellDLL/ScreenJoystick.cpp
+index 1c6d41ebb5965f5912507e489b3de9838e5dc94d..8a2c13f72fc291610ab0939059749432ca23d025 100644
+--- base/ClientShellDLL/ScreenJoystick.cpp
++++ modified/ClientShellDLL/ScreenJoystick.cpp
+@@ -20,0 +21,2 @@
++#include "FearMoreControllerMgr.h"
++#include "FearMoreControllerSettings.h"
+@@ -25,0 +28,5 @@ namespace
++	char const* const kControllerEnabledHelp = "FearMoreControllerEnabled_Help";
++	char const* const kControllerSensitivityHelp = "FearMoreControllerSensitivity_Help";
++	char const* const kControllerDeadZoneHelp = "FearMoreControllerDeadZone_Help";
++	char const* const kControllerInvertYHelp = "FearMoreControllerInvertY_Help";
++	char const* const kControllerRumbleHelp = "FearMoreControllerRumble_Help";
+@@ -68,0 +76,14 @@ namespace
++
++	const wchar_t* ControllerSensitivityTextCallback( int nPos, void* )
++	{
++		static wchar_t s_wszSensitivity[16];
++		LTSNPrintF( s_wszSensitivity, LTARRAYSIZE( s_wszSensitivity ), L"%0.1f", nPos / 10.0f );
++		return s_wszSensitivity;
++	}
++
++	const wchar_t* ControllerDeadZoneTextCallback( int nPos, void* )
++	{
++		static wchar_t s_wszDeadZone[16];
++		LTSNPrintF( s_wszDeadZone, LTARRAYSIZE( s_wszDeadZone ), L"%d%%", nPos );
++		return s_wszDeadZone;
++	}
+@@ -80 +101,7 @@ CScreenJoystick::CScreenJoystick() :
+-	m_nJoystickDevice(ILTInput::k_InvalidIndex)
++	m_nJoystickDevice(ILTInput::k_InvalidIndex),
++	m_nFirstAxis(ILTInput::k_InvalidIndex),
++	m_bFearMoreControllerEnabled(FearMoreControllerSettings::kEnabledDefault),
++	m_bFearMoreControllerInvertY(FearMoreControllerSettings::kInvertYDefault),
++	m_bFearMoreControllerRumble(FearMoreControllerSettings::kRumbleDefault),
++	m_nFearMoreControllerSensitivity(static_cast<int>(FearMoreControllerSettings::kSensitivityDefault * 10.0f)),
++	m_nFearMoreControllerDeadZone(static_cast<int>(FearMoreControllerSettings::kDeadZoneDefault * 100.0f))
+@@ -102,0 +130,45 @@ bool CScreenJoystick::Build()
++	const wchar_t* pszOn = LoadString( "IDS_ON" );
++	const wchar_t* pszOff = LoadString( "IDS_OFF" );
++	CLTGUIToggle_create tcs;
++	tcs.nHeaderWidth = kGap;
++	tcs.rnBaseRect.m_vMin.Init();
++	tcs.rnBaseRect.m_vMax = LTVector2n( m_ScreenRect.GetWidth(), nFontSize );
++	tcs.szHelpID = kControllerEnabledHelp;
++	tcs.pbValue = &m_bFearMoreControllerEnabled;
++	CLTGUIToggle* pControllerToggle = AddToggle( L"Modern controller", tcs );
++	pControllerToggle->SetOnString( pszOn );
++	pControllerToggle->SetOffString( pszOff );
++
++	CLTGUISlider_create scs;
++	scs.rnBaseRect.m_vMin.Init();
++	scs.rnBaseRect.m_vMax = LTVector2n( kGap + kWidth, nFontSize );
++	scs.nBarOffset = kGap;
++	scs.nDisplayWidth = 48;
++	scs.szHelpID = kControllerSensitivityHelp;
++	scs.pnValue = &m_nFearMoreControllerSensitivity;
++	scs.nMin = static_cast<int>( FearMoreControllerSettings::kSensitivityMinimum * 10.0f );
++	scs.nMax = static_cast<int>( FearMoreControllerSettings::kSensitivityMaximum * 10.0f );
++	scs.nIncrement = 1;
++	scs.pnTextCallback = ControllerSensitivityTextCallback;
++	AddSlider( L"Aim sensitivity", scs );
++
++	scs.szHelpID = kControllerDeadZoneHelp;
++	scs.pnValue = &m_nFearMoreControllerDeadZone;
++	scs.nMin = static_cast<int>( FearMoreControllerSettings::kDeadZoneMinimum * 100.0f );
++	scs.nMax = static_cast<int>( FearMoreControllerSettings::kDeadZoneMaximum * 100.0f );
++	scs.nIncrement = 1;
++	scs.pnTextCallback = ControllerDeadZoneTextCallback;
++	AddSlider( L"Stick deadzone", scs );
++
++	tcs.szHelpID = kControllerInvertYHelp;
++	tcs.pbValue = &m_bFearMoreControllerInvertY;
++	CLTGUIToggle* pInvertToggle = AddToggle( L"Invert controller Y", tcs );
++	pInvertToggle->SetOnString( pszOn );
++	pInvertToggle->SetOffString( pszOff );
++
++	tcs.szHelpID = kControllerRumbleHelp;
++	tcs.pbValue = &m_bFearMoreControllerRumble;
++	CLTGUIToggle* pRumbleToggle = AddToggle( L"Controller vibration", tcs );
++	pRumbleToggle->SetOnString( pszOn );
++	pRumbleToggle->SetOffString( pszOff );
++
+@@ -196,0 +269,20 @@ void CScreenJoystick::OnFocus(bool bFocus)
++		m_bFearMoreControllerEnabled = GetConsoleInt(
++			FearMoreControllerSettings::kEnabledCVar,
++			FearMoreControllerSettings::kEnabledDefault ? 1 : 0 ) != 0;
++		m_bFearMoreControllerInvertY = GetConsoleInt(
++			FearMoreControllerSettings::kInvertYCVar,
++			FearMoreControllerSettings::kInvertYDefault ? 1 : 0 ) != 0;
++		m_bFearMoreControllerRumble = GetConsoleInt(
++			FearMoreControllerSettings::kRumbleCVar,
++			FearMoreControllerSettings::kRumbleDefault ? 1 : 0 ) != 0;
++		m_nFearMoreControllerSensitivity = static_cast<int>( LTCLAMP(
++			GetConsoleFloat( FearMoreControllerSettings::kSensitivityCVar,
++				FearMoreControllerSettings::kSensitivityDefault ),
++			FearMoreControllerSettings::kSensitivityMinimum,
++			FearMoreControllerSettings::kSensitivityMaximum ) * 10.0f + 0.5f );
++		m_nFearMoreControllerDeadZone = static_cast<int>( LTCLAMP(
++			GetConsoleFloat( FearMoreControllerSettings::kDeadZoneCVar,
++				FearMoreControllerSettings::kDeadZoneDefault ),
++			FearMoreControllerSettings::kDeadZoneMinimum,
++			FearMoreControllerSettings::kDeadZoneMaximum ) * 100.0f + 0.5f );
++
+@@ -205,0 +298,15 @@ void CScreenJoystick::OnFocus(bool bFocus)
++		WriteConsoleInt( FearMoreControllerSettings::kEnabledCVar,
++			m_bFearMoreControllerEnabled ? 1 : 0 );
++		WriteConsoleFloat( FearMoreControllerSettings::kSensitivityCVar,
++			LTCLAMP( m_nFearMoreControllerSensitivity / 10.0f,
++				FearMoreControllerSettings::kSensitivityMinimum,
++				FearMoreControllerSettings::kSensitivityMaximum ) );
++		WriteConsoleFloat( FearMoreControllerSettings::kDeadZoneCVar,
++			LTCLAMP( m_nFearMoreControllerDeadZone / 100.0f,
++				FearMoreControllerSettings::kDeadZoneMinimum,
++				FearMoreControllerSettings::kDeadZoneMaximum ) );
++		WriteConsoleInt( FearMoreControllerSettings::kInvertYCVar,
++			m_bFearMoreControllerInvertY ? 1 : 0 );
++		WriteConsoleInt( FearMoreControllerSettings::kRumbleCVar,
++			m_bFearMoreControllerRumble ? 1 : 0 );
++
+@@ -210,0 +318 @@ void CScreenJoystick::OnFocus(bool bFocus)
++		SaveSettings();
+@@ -214,0 +323,36 @@ void CScreenJoystick::OnFocus(bool bFocus)
++void CScreenJoystick::GetHelpString(const char* szHelpId, uint16 nControlIndex, wchar_t *buffer, int bufLen)
++{
++	if( LTStrIEquals( szHelpId, kControllerEnabledHelp ) )
++	{
++		if( !CFearMoreControllerMgr::Instance().IsRuntimeAvailable() )
++			LTStrCpy( buffer, L"The validated SDL3 runtime is unavailable. Keyboard and mouse remain active. Relaunch through Launch FearMore to revalidate; a missing or changed owned payload fails closed and requires a fresh stage.", bufLen );
++		else if( !CFearMoreControllerMgr::Instance().IsGamepadConnected() )
++			LTStrCpy( buffer, L"SDL3 is ready. Connect an Xbox, PlayStation, or Switch-compatible controller; hotplug is supported while the game is running.", bufLen );
++		else
++			LTStrCpy( buffer, L"Use the modern SDL3 controller path. Keyboard and mouse remain active at the same time.", bufLen );
++		return;
++	}
++	if( LTStrIEquals( szHelpId, kControllerSensitivityHelp ) )
++	{
++		LTStrCpy( buffer, L"Adjust right-stick aim speed. Aim remains normalized using real frame time at high refresh rates.", bufLen );
++		return;
++	}
++	if( LTStrIEquals( szHelpId, kControllerDeadZoneHelp ) )
++	{
++		LTStrCpy( buffer, L"Set the radial inner deadzone for both sticks. Increase it only if the camera or movement drifts.", bufLen );
++		return;
++	}
++	if( LTStrIEquals( szHelpId, kControllerInvertYHelp ) )
++	{
++		LTStrCpy( buffer, L"Invert controller vertical aim independently of the mouse invert setting.", bufLen );
++		return;
++	}
++	if( LTStrIEquals( szHelpId, kControllerRumbleHelp ) )
++	{
++		LTStrCpy( buffer, L"Route F.E.A.R.'s authored low- and high-frequency ClientFX vibration to the active SDL3 gamepad.", bufLen );
++		return;
++	}
++
++	CBaseScreen::GetHelpString( szHelpId, nControlIndex, buffer, bufLen );
++}
++
+diff --git base/ClientShellDLL/ScreenJoystick.h modified/ClientShellDLL/ScreenJoystick.h
+index 7f8559106e17cbdaae6379b0f6f9f3e72c1f3d24..c8bdf4665d74f02a4bcb21b7bd6d675514a8a842 100644
+--- base/ClientShellDLL/ScreenJoystick.h
++++ modified/ClientShellDLL/ScreenJoystick.h
+@@ -29,0 +30 @@ public:
++	void GetHelpString(const char* szHelpId, uint16 nControlIndex, wchar_t *buffer, int bufLen);
+@@ -39,0 +41,5 @@ protected:
++	bool m_bFearMoreControllerEnabled;
++	bool m_bFearMoreControllerInvertY;
++	bool m_bFearMoreControllerRumble;
++	int m_nFearMoreControllerSensitivity;
++	int m_nFearMoreControllerDeadZone;
+diff --git base/ClientShellDLL/ScreenPerformance.cpp modified/ClientShellDLL/ScreenPerformance.cpp
+index 8698e5df81cc748b280431fcfa6fb883d887414c..bc58d488c3d759e4efe7156f44791d0fdd5142dd 100644
+--- base/ClientShellDLL/ScreenPerformance.cpp
++++ modified/ClientShellDLL/ScreenPerformance.cpp
+@@ -25,0 +26 @@
++#include "FearMoreRemasterQuality.h"
+@@ -34,0 +36 @@ namespace
++		CMD_APPLY_REMASTER_QUALITY,
+@@ -121,0 +124,6 @@ bool CScreenPerformance::Build()
++	cs.rnBaseRect.m_vMin.Init();
++	cs.rnBaseRect.m_vMax = LTVector2n(kColumn0+kColumn1,nFontHeight);
++	cs.nCommandID = CMD_APPLY_REMASTER_QUALITY;
++	cs.szHelpID = FearMoreRemasterQuality::GetHelpId();
++	AddTextItem(FearMoreRemasterQuality::GetLabel(), cs );
++
+@@ -191,0 +200,4 @@ uint32 CScreenPerformance::OnCommand(uint32 dwCommand, uint32 dwParam1, uint32 d
++	case CMD_APPLY_REMASTER_QUALITY:
++		ApplyRemasterQuality();
++		break;
++
+@@ -248,0 +261,13 @@ uint32 CScreenPerformance::OnCommand(uint32 dwCommand, uint32 dwParam1, uint32 d
++void CScreenPerformance::GetHelpString(const char* szHelpId, uint16 nControlIndex,
++	wchar_t *buffer, int bufLen)
++{
++	const wchar_t* pHelpText = FearMoreRemasterQuality::GetHelpText(szHelpId);
++	if (pHelpText)
++	{
++		LTStrCpy(buffer, pHelpText, bufLen);
++		return;
++	}
++
++	CBaseScreen::GetHelpString(szHelpId, nControlIndex, buffer, bufLen);
++}
++
+@@ -345,2 +370,15 @@ void CScreenPerformance::Load()
+-	uint32 nWidth = GetConsoleInt("ScreenWidth",640);
+-	uint32 nHeight = GetConsoleInt("ScreenHeight",480);
++	// Seed the hidden Performance resolution from the renderer that is actually
++	// active.  Both the profile and the legacy ScreenWidth/ScreenHeight console
++	// variables can still contain the bootstrap mode until the Display screen has
++	// synchronized them.  An unrelated quality change must not restore that mode.
++	CUserProfile* pProfile = g_pProfileMgr->GetCurrentProfile();
++	uint32 nWidth = pProfile ? pProfile->m_nScreenWidth : GetConsoleInt("ScreenWidth",640);
++	uint32 nHeight = pProfile ? pProfile->m_nScreenHeight : GetConsoleInt("ScreenHeight",480);
++	RMode currentMode;
++	if (g_pGameClientShell->IsRendererInitted() &&
++		g_pLTClient->GetRenderMode(&currentMode) == LT_OK &&
++		currentMode.m_Width > 0 && currentMode.m_Height > 0)
++	{
++		nWidth = currentMode.m_Width;
++		nHeight = currentMode.m_Height;
++	}
+@@ -388,0 +427,33 @@ void CScreenPerformance::SetBasedOnPerformanceStats()
++// ----------------------------------------------------------------------- //
++//
++//	ROUTINE:	CScreenPerformance::ApplyRemasterQuality()
++//
++//	PURPOSE:	select the retail database's Maximum level for the proven
++//				remaster-quality options without changing any other option
++//
++// ----------------------------------------------------------------------- //
++bool CScreenPerformance::ApplyRemasterQuality()
++{
++	if (!FearMoreRemasterQuality::QueueMaximumPreset())
++	{
++		MBCreate mb;
++		mb.eType = LTMB_OK;
++		g_pInterfaceMgr->ShowMessageBox(
++			L"Remaster quality was not applied. A required retail performance option is missing or incompatible.",
++			&mb );
++		return false;
++	}
++
++	UpdateOverall(ePT_CPU);
++	UpdateOverall(ePT_GPU);
++	CheckResolutionMemory();
++	UpdateGPUColor();
++
++	MBCreate mb;
++	mb.eType = LTMB_OK;
++	g_pInterfaceMgr->ShowMessageBox(
++		L"Remaster quality is ready. Leave the Performance screen to apply and save the changes.",
++		&mb );
++	return true;
++}
++
+diff --git base/ClientShellDLL/ScreenPerformance.h modified/ClientShellDLL/ScreenPerformance.h
+index 37d151cee3b7fb4dfdd0623cd8ba1d4a42c5250a..d75fd5d62e6a2e3bb18cd50933b0673095255f28 100644
+--- base/ClientShellDLL/ScreenPerformance.h
++++ modified/ClientShellDLL/ScreenPerformance.h
+@@ -33,0 +34 @@ public:
++	void	GetHelpString(const char* szHelpId, uint16 nControlIndex, wchar_t *buffer, int bufLen);
+@@ -49,0 +51 @@ protected:
++	bool	ApplyRemasterQuality();
+diff --git base/ClientShellDLL/VolumetricLightFX.cpp modified/ClientShellDLL/VolumetricLightFX.cpp
+index ad04d046c8a3e04ee660b1d80cdc313b46424901..b91f0d281c77f2ddb6403685844328e4946609ef 100644
+--- base/ClientShellDLL/VolumetricLightFX.cpp
++++ modified/ClientShellDLL/VolumetricLightFX.cpp
+@@ -19,0 +20 @@
++#include "FearMoreGraphicsSettings.h"
+@@ -66,0 +68,2 @@ public:
++		m_nCurNativeShadowRes(0),
++		m_nAllocatedShadowRes(0),
+@@ -169,0 +173,8 @@ public:
++		const uint32 nNativeShadowRes = (uint32)g_cvarVolumetricLightShadowRes.GetFloat();
++		uint32 nRequestedShadowWidth = nNativeShadowRes;
++		uint32 nRequestedShadowHeight = nNativeShadowRes;
++		FearMoreGraphicsSettings::GetEffectsTargetDimensions(
++			FearMoreGraphicsSettings::GetActiveEffectsTargetQuality(),
++			nNativeShadowRes, nNativeShadowRes,
++			nRequestedShadowWidth, nRequestedShadowHeight);
++
+@@ -172 +183,2 @@ public:
+-			(m_nCurShadowRes != (uint32)g_cvarVolumetricLightShadowRes.GetFloat()) || 
++			(m_nCurShadowRes != nRequestedShadowWidth) ||
++			(m_nCurNativeShadowRes != nNativeShadowRes) ||
+@@ -177 +189,2 @@ public:
+-			m_nCurShadowRes = (uint32)g_cvarVolumetricLightShadowRes.GetFloat();
++			m_nCurShadowRes = nRequestedShadowWidth;
++			m_nCurNativeShadowRes = nNativeShadowRes;
+@@ -206 +219,12 @@ public:
+-			nResult = g_pLTRenderer->CreateRenderTarget(m_nCurShadowRes, m_nCurShadowRes, eRTO_DepthBuffer, hShadowBuffer);
++			uint32 nAllocationShadowRes = m_nAllocatedShadowRes ? m_nAllocatedShadowRes : m_nCurShadowRes;
++			nResult = g_pLTRenderer->CreateRenderTarget(nAllocationShadowRes, nAllocationShadowRes, eRTO_DepthBuffer, hShadowBuffer);
++			if ((nResult != LT_OK) && (nAllocationShadowRes != nNativeShadowRes))
++			{
++				if (hShadowBuffer)
++				{
++					g_pLTRenderer->ReleaseRenderTarget(hShadowBuffer);
++					hShadowBuffer = NULL;
++				}
++				nAllocationShadowRes = nNativeShadowRes;
++				nResult = g_pLTRenderer->CreateRenderTarget(nNativeShadowRes, nNativeShadowRes, eRTO_DepthBuffer, hShadowBuffer);
++			}
+@@ -208,0 +233 @@ public:
++			m_nAllocatedShadowRes = nAllocationShadowRes;
+@@ -368,0 +394 @@ private:
++		m_nAllocatedShadowRes = 0;
+@@ -412 +438 @@ private:
+-	uint32 m_nCurShadowRes, m_nCurSliceRes;
++	uint32 m_nCurShadowRes, m_nCurNativeShadowRes, m_nAllocatedShadowRes, m_nCurSliceRes;
+diff --git base/ObjectDLL/AI.cpp modified/ObjectDLL/AI.cpp
+index 5d49adc93e66be63d647d7712c1d275ce88e99ab..35eb6a4270a2a9924dbf54367c9c58aefa3c863d 100644
+--- base/ObjectDLL/AI.cpp
++++ modified/ObjectDLL/AI.cpp
+@@ -43,0 +44 @@
++#include "AIProfiler.h"
+@@ -57,0 +59,18 @@ static VarTrack g_AIInfoTrack;
++// A value of zero follows the simulation frame.  Positive values throttle AI
++// updates to the requested number of seconds for profiling or retail timing
++// compatibility (the original interval was 0.01 seconds).
++static VarTrack s_AIUpdateIntervalTrack;
++
++static float GetAIUpdateInterval()
++{
++	if( !s_AIUpdateIntervalTrack.IsInitted() )
++	{
++		s_AIUpdateIntervalTrack.Init( g_pLTServer, "AIUpdateInterval", NULL, 0.0f );
++	}
++
++	const float fConfiguredInterval = s_AIUpdateIntervalTrack.GetFloat();
++	return ( fConfiguredInterval > 0.0f )
++		? LTMAX<float>( fConfiguredInterval, UPDATE_NEXT_FRAME )
++		: UPDATE_NEXT_FRAME;
++}
++
+@@ -138 +157 @@ BEGIN_CLASS(CAI)
+-		ADD_STRINGPROP_FLAG(OV_Accuracy,					"", PF_GROUP(4), "Percent chance a shot will hit AI’s target.")
++		ADD_STRINGPROP_FLAG(OV_Accuracy,					"", PF_GROUP(4), "Percent chance a shot will hit AI's target.")
+@@ -663 +682 @@ uint32 CAI::EngineMessageFn(uint32 messageID, void *pData, float fData)
+-			SetNextServerUpdate( c_fUpdateDelta );
++			SetNextServerUpdate( GetAIUpdateInterval() );
+@@ -707 +726 @@ uint32 CAI::EngineMessageFn(uint32 messageID, void *pData, float fData)
+-			SetNextServerUpdate( c_fUpdateDelta );
++			SetNextServerUpdate( GetAIUpdateInterval() );
+@@ -1216 +1235 @@ void CAI::PostReadProp(ObjectCreateStruct *pStruct)
+-			LTStrCpy( (pStruct->m_Materials[BODY_MATERIAL_INDEX]) + pos + (LTStrLen(pszBodyMaterialExtension)-1), "."RESEXT_MATERIAL, LTARRAYSIZE(pStruct->m_Materials[BODY_MATERIAL_INDEX]) - (pos + (LTStrLen(pszBodyMaterialExtension)-1)));
++			LTStrCpy( (pStruct->m_Materials[BODY_MATERIAL_INDEX]) + pos + (LTStrLen(pszBodyMaterialExtension)-1), "." RESEXT_MATERIAL, LTARRAYSIZE(pStruct->m_Materials[BODY_MATERIAL_INDEX]) - (pos + (LTStrLen(pszBodyMaterialExtension)-1)));
+@@ -1258 +1277 @@ void CAI::PostReadProp(ObjectCreateStruct *pStruct)
+-			LTStrCpy( (pStruct->m_Materials[HEAD_MATERIAL_INDEX]) + pos + (LTStrLen(pszHeadExtension)-1), "."RESEXT_MATERIAL, LTARRAYSIZE(pStruct->m_Materials[BODY_MATERIAL_INDEX]) - (pos + (LTStrLen(pszHeadExtension)-1)));
++			LTStrCpy( (pStruct->m_Materials[HEAD_MATERIAL_INDEX]) + pos + (LTStrLen(pszHeadExtension)-1), "." RESEXT_MATERIAL, LTARRAYSIZE(pStruct->m_Materials[BODY_MATERIAL_INDEX]) - (pos + (LTStrLen(pszHeadExtension)-1)));
+@@ -2832,0 +2852 @@ void CAI::Update()
++	CAIProfileScope ProfileScope( kAIProfileScope_AIUpdate );
+@@ -6239 +6258,0 @@ void CAI::GetPrefetchResourceList(const char* pszObjectName, IObjectResourceGath
+-
+diff --git base/ObjectDLL/AIGoalMgr.cpp modified/ObjectDLL/AIGoalMgr.cpp
+index fbb5d2e777f072e528fc73b2f672d20719373463..3f6b801117c0885c355b752a0f3fce97a7822bb6 100644
+--- base/ObjectDLL/AIGoalMgr.cpp
++++ modified/ObjectDLL/AIGoalMgr.cpp
+@@ -13,0 +14 @@
++#include "AIProfiler.h"
+@@ -644,0 +646 @@ void CAIGoalMgr::SelectRelevantGoal()
++	CAIProfileScope ProfileScope( kAIProfileScope_GoalSelection );
+diff --git base/ObjectDLL/AIMgr.cpp modified/ObjectDLL/AIMgr.cpp
+index 2966220f3cbc4ce1c7beff8deae220ed0849aa8b..9cbffb1f5e628ea5ada05addca2275fed6a5cfca 100644
+--- base/ObjectDLL/AIMgr.cpp
++++ modified/ObjectDLL/AIMgr.cpp
+@@ -13,0 +14 @@
++#include "AIProfiler.h"
+@@ -443,0 +445 @@ void CAIMgr::Update()
++	CAIProfileScope ProfileScope( kAIProfileScope_AIMgr );
+@@ -621 +622,0 @@ void CAIMgr::OnDebugCmd( HOBJECT hSender, const CParsedMsg &crParsedMsg )
+-
+diff --git base/ObjectDLL/AINavigationMgr.cpp modified/ObjectDLL/AINavigationMgr.cpp
+index c69eb44d7ff8dbec4025f2c5470b8c9ed31cf3c5..e31aad82980fa7e2fa81a2b77ab00adf7adca9da 100644
+--- base/ObjectDLL/AINavigationMgr.cpp
++++ modified/ObjectDLL/AINavigationMgr.cpp
+@@ -13,0 +14 @@
++#include "AIProfiler.h"
+@@ -260,0 +262 @@ void CAINavigationMgr::UpdateNavigation()
++	CAIProfileScope ProfileScope( kAIProfileScope_Navigation );
+diff --git base/ObjectDLL/AISensorFlamePot.cpp modified/ObjectDLL/AISensorFlamePot.cpp
+index b28532cdb97aeeadd8ebb1a972f9196bf49f9057..46b0a10c6a08a7948efe2283fd97d7ccf55ada5a 100644
+--- base/ObjectDLL/AISensorFlamePot.cpp
++++ modified/ObjectDLL/AISensorFlamePot.cpp
+@@ -18,0 +19,2 @@ DEFINE_AI_FACTORY_CLASS_SPECIFIC( Sensor, CAISensorFlamePot, kSensor_FlamePot );
++static const double kFlamePotInvalidPositionDelay = 2.0;
++
+@@ -57 +59,2 @@ CAISensorFlamePot::CAISensorFlamePot() :
+-	m_bWasInFlamePotLastFrame( false )
++	m_bWasInFlamePotLastFrame( false ),
++	m_flTimeEnteredFlamePot( 0.0 )
+@@ -77,0 +81,7 @@ void CAISensorFlamePot::Load(ILTMessage_Read *pMsg)
++
++	// The original save data only records whether the AI was in the link.  Do
++	// not change that format; restart the grace period when restoring an AI
++	// that was inside a flame pot instead of using an uninitialized timestamp.
++	m_flTimeEnteredFlamePot = m_bWasInFlamePotLastFrame
++		? g_pLTServer->GetTime()
++		: 0.0;
+@@ -106 +116 @@ bool CAISensorFlamePot::UpdateSensor()
+-		&& ( m_flTimeEnteredFlamePot < g_pLTServer->GetTime() + 2.0f ) 
++		&& ( g_pLTServer->GetTime() >= m_flTimeEnteredFlamePot + kFlamePotInvalidPositionDelay )
+diff --git base/ObjectDLL/AISensorMgr.cpp modified/ObjectDLL/AISensorMgr.cpp
+index a09a070288ad2e6ba8696865c95b11d15ef174ac..629bb3c442adb1b54ae450de0773e73545608ac4 100644
+--- base/ObjectDLL/AISensorMgr.cpp
++++ modified/ObjectDLL/AISensorMgr.cpp
+@@ -13,0 +14 @@
++#include "AIProfiler.h"
+@@ -76 +77 @@ void CAISensorMgr::Save(ILTMessage_Write *pMsg)
+-		SAVE_INT(m_lstProcessedStimuli.size());
++		SAVE_INT(m_lstProcessedStimuli[n]);
+@@ -299,0 +301 @@ bool CAISensorMgr::UpdateSensors( bool bUpdateDistributedSensors )
++	CAIProfileScope ProfileScope( kAIProfileScope_Sensors );
+diff --git base/ObjectDLL/Character.cpp modified/ObjectDLL/Character.cpp
+index 6c521a98613db77906be9351c26e644dcc3dadab..046cc79f0723e708383cece7fba9372eea5caaae 100644
+--- base/ObjectDLL/Character.cpp
++++ modified/ObjectDLL/Character.cpp
+@@ -65,0 +66 @@
++#include <algorithm>
+@@ -96,0 +98,36 @@ static VarTrack s_vtRagdollDelay;
++static VarTrack s_vtEnhancedGore;
++static VarTrack s_vtEnhancedGoreMaxSeversPerBody;
++
++// Retail saves only record that some sever occurred, not which non-head
++// location was detached.  Keep that conservative state inside the existing
++// byte without treating it as a precise location list during client replay.
++static uint8 const kEnhancedGoreImpreciseSeverMask = 0x80;
++
++static void ScheduleSeveredAIUpdate(HOBJECT hObject)
++{
++	CAI* pAI = CAI::DynamicCast(hObject);
++	if (pAI)
++	{
++		pAI->SetNextServerUpdate(c_fUpdateDelta);
++	}
++}
++
++static bool IsEnhancedGoreEnabled()
++{
++	if (!s_vtEnhancedGore.IsInitted())
++	{
++		s_vtEnhancedGore.Init(g_pLTServer, "EnhancedGore", NULL, 0.0f);
++	}
++
++	return (s_vtEnhancedGore.GetFloat(0.0f) > 0.0f);
++}
++
++static uint32 GetEnhancedGoreMaxSeversPerBody()
++{
++	if (!s_vtEnhancedGoreMaxSeversPerBody.IsInitted())
++	{
++		s_vtEnhancedGoreMaxSeversPerBody.Init(g_pLTServer, "EnhancedGoreMaxSeversPerBody", NULL, 3.0f);
++	}
++
++	return (uint32)LTCLAMP((int)s_vtEnhancedGoreMaxSeversPerBody.GetFloat(3.0f), 1, (int)HL_NUM_LOCS - 1);
++}
+@@ -275,2 +312,3 @@ static bool DamageFilterHook( GameBase *pObject, DamageStruct *pDamageStruct )
+-	// call the most derived class
+-	return pMyObj->FilterDamage( pDamageStruct );
++	// Call the most derived filter and retain its final result for character-side
++	// systems that run after CDestructible consumes its private damage copy.
++	return pMyObj->ApplyDamageFilter( pDamageStruct );
+@@ -307,0 +346,2 @@ CCharacter::CCharacter()
++	m_bLastDamageFilterAccepted	( false ),
++	m_bModelNodeHitPending		( false ),
+@@ -363,0 +404 @@ CCharacter::CCharacter()
++	m_nEnhancedGoreSeveredLocations ( 0 ),
+@@ -398,0 +440 @@ CCharacter::CCharacter()
++	m_EnhancedGoreDamageTracker.Init(this);
+@@ -416,0 +459,5 @@ void CCharacter::ResetAfterDeath()
++	m_nEnhancedGoreSeveredLocations = 0;
++	m_EnhancedGoreDamageTracker.Clear();
++	m_bLastDamageFilterAccepted = false;
++	m_bModelNodeHitPending = false;
++
+@@ -731,0 +779 @@ uint32 CCharacter::ObjectMessageFn(HOBJECT hSender, ILTMessage_Read *pMsg)
++			m_bLastDamageFilterAccepted = false;
+@@ -740,0 +789,6 @@ uint32 CCharacter::ObjectMessageFn(HOBJECT hSender, ILTMessage_Read *pMsg)
++
++			// Projectile hit-node producers set this immediately before sending the
++			// damage message.  Consume that context once so later positional or
++			// collision damage cannot reuse an ambient node from an older hit.
++			m_bModelNodeHitPending = false;
++			m_bLastDamageFilterAccepted = false;
+@@ -1229 +1283,4 @@ void CCharacter::ProcessDamageMsg( DamageStruct &rDamage )
+-	if ( !m_damage.IsCantDamageType(rDamage.eType) && m_damage.GetCanDamage() )
++	bool bProcessedEnhancedGoreDamage =
++		m_bLastDamageFilterAccepted && ProcessEnhancedGoreDamage(m_LastFilteredDamage);
++
++	if ( !bProcessedEnhancedGoreDamage && !m_damage.IsCantDamageType(rDamage.eType) && m_damage.GetCanDamage() )
+@@ -1262,0 +1320,154 @@ void CCharacter::ProcessDamageMsg( DamageStruct &rDamage )
++// --------------------------------------------------------------------------- //
++//
++//	ROUTINE:	CCharacter::ProcessEnhancedGoreDamage()
++//
++//	PURPOSE:	Allow bounded, location-specific corpse severing without
++//				re-entering destructible death, scoring, or death commands.
++//
++// --------------------------------------------------------------------------- //
++bool CCharacter::ProcessEnhancedGoreDamage(const DamageStruct& rDamage)
++{
++	if (IsMultiplayerGameServer() || !IsEnhancedGoreEnabled() ||
++		!g_pGameServerShell || !g_pGameServerShell->IsGoreAllowed() ||
++		m_cs.bIsPlayer ||
++		!m_damage.IsDead() || !m_bStartedDeath ||
++		m_bGibbed || m_bDeathEffect || rDamage.fDamage <= 0.0f || rDamage.fDuration > 0.0f ||
++		rDamage.eType == DT_INVALID || rDamage.eType == DT_WORLDONLY ||
++		m_damage.IsCantDamageType(rDamage.eType) || !m_bModelNodeHitPending)
++	{
++		return false;
++	}
++
++	if (GetEnhancedGoreSeverCount() >= GetEnhancedGoreMaxSeversPerBody())
++	{
++		return false;
++	}
++
++	if (!m_bIsOnSeveredList &&
++		(sm_nSeverCounter > 0 || m_lstSeverBodies.size() >= g_pServerDB->GetSeverTotalCap()))
++	{
++		return false;
++	}
++
++	ModelsDB::HSEVERBODY hBody = g_pModelsDB->GetSeverBodyRecord(m_hModel);
++	if (!hBody || !m_hModelNodeLastHit)
++	{
++		return false;
++	}
++
++	HitLocation eHitLocation = g_pModelsDB->GetNodeLocation(m_hModelNodeLastHit);
++	if (eHitLocation <= HL_UNKNOWN || eHitLocation >= HL_NUM_LOCS ||
++		HasEnhancedGoreSeveredLocation(eHitLocation))
++	{
++		return false;
++	}
++
++	if (IsKnockedDown() ||
++		(IsCrouched() && (eHitLocation == HL_TORSO || eHitLocation == HL_LEG_LEFT || eHitLocation == HL_LEG_RIGHT)))
++	{
++		return false;
++	}
++
++	// CDestructible has already rejected repeat death handling before this call.
++	// Only the gore tracker consumes this damage; hit points, score and commands
++	// are deliberately untouched.
++	m_EnhancedGoreDamageTracker.ProcessDamage(rDamage);
++
++	ModelsDB::HPieceArray hSeveredPieces;
++	uint32 nNumPieces = g_pModelsDB->GetBodyNumPieces(hBody);
++	hSeveredPieces.reserve(nNumPieces);
++	for (uint32 nPiece = 0; nPiece < nNumPieces; ++nPiece)
++	{
++		ModelsDB::HSEVERPIECE hSeveredPiece = g_pModelsDB->GetBodyPiece(hBody, nPiece);
++		if (hSeveredPiece && HasEnhancedGoreSeveredLocation(g_pModelsDB->GetSPLocation(hSeveredPiece)))
++		{
++			hSeveredPieces.push_back(hSeveredPiece);
++		}
++	}
++
++	ModelsDB::HSEVERPIECE hPiece = m_EnhancedGoreDamageTracker.CheckForSeverAtLocation(hBody, eHitLocation, hSeveredPieces);
++	if (!hPiece)
++	{
++		return true;
++	}
++
++	ScheduleSeveredAIUpdate(m_hObject);
++
++	if (!m_bSevered)
++	{
++		m_bSevered = true;
++		PrepareToSever();
++	}
++
++	if (!m_bIsOnSeveredList)
++	{
++		// Match stock admission pacing for the first sever on a body.  Once a
++		// corpse is admitted, its per-corpse limit governs additional locations.
++		sm_nSeverCounter = g_pServerDB->GetSeverFrequencyCap();
++		if (g_vtBodySeverTest.GetFloat() > 0.0f)
++		{
++			sm_nSeverCounter = 0;
++		}
++
++		m_bIsOnSeveredList = true;
++		m_lstSeverBodies.push_back(this);
++	}
++
++	HandleSeverWithImpulse(hPiece, rDamage.GetDamageDir(), rDamage.fImpulseForce);
++	return true;
++}
++
++bool CCharacter::HasEnhancedGoreSeveredLocation(HitLocation eLocation) const
++{
++	if (eLocation <= HL_UNKNOWN || eLocation >= HL_NUM_LOCS)
++	{
++		return false;
++	}
++
++	return ((m_nEnhancedGoreSeveredLocations & (1 << eLocation)) != 0);
++}
++
++void CCharacter::MarkEnhancedGoreSeveredLocation(HitLocation eLocation)
++{
++	if (eLocation > HL_UNKNOWN && eLocation < HL_NUM_LOCS)
++	{
++		m_nEnhancedGoreSeveredLocations |= (1 << eLocation);
++	}
++}
++
++uint32 CCharacter::GetEnhancedGoreSeverCount() const
++{
++	uint32 nCount = 0;
++	for( uint32 nLocation = HL_HEAD; nLocation < HL_NUM_LOCS; ++nLocation )
++	{
++		if( HasEnhancedGoreSeveredLocation( static_cast<HitLocation>( nLocation )))
++		{
++			++nCount;
++		}
++	}
++
++	return nCount;
++}
++
++void CCharacter::ReplayEnhancedGoreSeversToClient( HCLIENT hClient )
++{
++	if( !hClient || m_nEnhancedGoreSeveredLocations == 0 ||
++		( m_nEnhancedGoreSeveredLocations & kEnhancedGoreImpreciseSeverMask ))
++	{
++		return;
++	}
++
++	// Detached pieces are client objects and are not serialized by the server.
++	// Replay the stock message once the replacement CharacterFX is in-world.
++	// A unit direction plus zero force gives the reconstructed part no impulse.
++	const LTVector vNeutralSeverDir( 0.0f, 1.0f, 0.0f );
++	for( uint32 nLocation = HL_HEAD; nLocation < HL_NUM_LOCS; ++nLocation )
++	{
++		HitLocation eLocation = static_cast<HitLocation>( nLocation );
++		if( HasEnhancedGoreSeveredLocation( eLocation ))
++		{
++			SendSeverMessage( hClient, eLocation, vNeutralSeverDir, 0.0f );
++		}
++	}
++}
++
+@@ -3926,0 +4138 @@ void CCharacter::StartDeath()
++				ScheduleSeveredAIUpdate(m_hObject);
+@@ -4174,0 +4387,2 @@ void CCharacter::Save(ILTMessage_Write *pMsg)
++	SAVE_BYTE( m_nEnhancedGoreSeveredLocations );
++	m_EnhancedGoreDamageTracker.Save(pMsg);
+@@ -4220,0 +4435,5 @@ void CCharacter::Load(ILTMessage_Read *pMsg)
++	// Transient message ownership is never reconstructed from a save.  In
++	// particular, a persisted last-hit node is not proof of a fresh hit.
++	m_bLastDamageFilterAccepted = false;
++	m_bModelNodeHitPending = false;
++
+@@ -4325,0 +4545,12 @@ void CCharacter::Load(ILTMessage_Read *pMsg)
++	bool bLoadedEnhancedGoreState =
++		(g_pVersionMgr->GetCurrentSaveVersion() >= CVersionMgr::kSaveVersion__FearMoreEnhancedGore);
++	if (bLoadedEnhancedGoreState)
++	{
++		LOAD_BYTE(m_nEnhancedGoreSeveredLocations);
++		m_EnhancedGoreDamageTracker.Load(pMsg);
++	}
++	else
++	{
++		m_nEnhancedGoreSeveredLocations = 0;
++		m_EnhancedGoreDamageTracker.Clear();
++	}
+@@ -4326,0 +4558,15 @@ void CCharacter::Load(ILTMessage_Read *pMsg)
++	if (!bLoadedEnhancedGoreState && m_bSevered)
++	{
++		// Retail saves do not identify non-head pieces that were detached.  Mark
++		// every location unavailable rather than risk spawning a duplicate limb,
++		// and flag the conservative mask so it is never replayed as exact state.
++		m_nEnhancedGoreSeveredLocations |= kEnhancedGoreImpreciseSeverMask;
++		for (uint32 nLocation = HL_HEAD; nLocation < HL_NUM_LOCS; ++nLocation)
++		{
++			MarkEnhancedGoreSeveredLocation(static_cast<HitLocation>(nLocation));
++		}
++	}
++	if (m_bDecapitated)
++	{
++		MarkEnhancedGoreSeveredLocation(HL_HEAD);
++	}
+@@ -4730,0 +4977,18 @@ bool CCharacter::FilterDamage( DamageStruct *pDamageStruct )
++bool CCharacter::ApplyDamageFilter( DamageStruct *pDamageStruct )
++{
++	if (!pDamageStruct)
++	{
++		m_bLastDamageFilterAccepted = false;
++		return false;
++	}
++
++	bool bAccepted = FilterDamage(pDamageStruct);
++	m_bLastDamageFilterAccepted = bAccepted;
++	if (bAccepted)
++	{
++		m_LastFilteredDamage = *pDamageStruct;
++	}
++
++	return bAccepted;
++}
++
+@@ -4975,0 +5240 @@ void CCharacter::CapNumberOfBodies( )
++	CharacterList lstBodiesStartingFade;
+@@ -4994 +5258,0 @@ void CCharacter::CapNumberOfBodies( )
+-	nBodyCapRadiusCount = LTMAX( 0, nBodyCapRadiusCount );
+@@ -4996 +5259,0 @@ void CCharacter::CapNumberOfBodies( )
+-	nBodyCapTotalCount = LTMAX( 0, nBodyCapTotalCount );
+@@ -5028,2 +5291,5 @@ void CCharacter::CapNumberOfBodies( )
+-	// Get the number of bodies that will be removed by the radius check.
+-	int nNumCapByRadius;
++	// Convert the queue size before subtracting. Subtracting the signed cap
++	// from size_t first underflows whenever the queue is already below budget.
++	// Keep the inherited negative sentinel meaningful: it disables the radius
++	// cap instead of being clamped to zero and fading every in-radius body.
++	int nNumCapByRadius = 0;
+@@ -5032,5 +5298,2 @@ void CCharacter::CapNumberOfBodies( )
+-		nNumCapByRadius = queRadius.size( ) - nBodyCapRadiusCount;
+-	}
+-	else
+-	{
+-		nNumCapByRadius = 0;
++		nNumCapByRadius = LTMAX( 0,
++			static_cast<int>( queRadius.size( )) - nBodyCapRadiusCount );
+@@ -5038 +5300,0 @@ void CCharacter::CapNumberOfBodies( )
+-	nNumCapByRadius = LTMAX( 0, nNumCapByRadius );
+@@ -5042 +5304 @@ void CCharacter::CapNumberOfBodies( )
+-	while( nRadiusCount > 0 )
++	while( nRadiusCount > 0 && !queRadius.empty( ))
+@@ -5045 +5307,2 @@ void CCharacter::CapNumberOfBodies( )
+-		BodyDistance const& body = queRadius.top( );
++		CCharacter* pBody = queRadius.top( ).m_pBody;
++		queRadius.pop( );
+@@ -5048,4 +5311,2 @@ void CCharacter::CapNumberOfBodies( )
+-		body.m_pBody->StartFade();
+-
+-		// Go to the next farthest body.
+-		queRadius.pop( );
++		pBody->StartFade();
++		lstBodiesStartingFade.push_back( pBody );
+@@ -5058 +5319,2 @@ void CCharacter::CapNumberOfBodies( )
+-	// bodies removed by radius as not part of the total count.
++	// bodies removed by radius as not part of the total count. A negative total
++	// count retains the inherited no-total-cap sentinel semantics.
+@@ -5061,11 +5323,16 @@ void CCharacter::CapNumberOfBodies( )
+-	int nTotalCount = queTotal.size( ) - nNumCapByRadius - nBodyCapTotalCount;
+-	while( nTotalCount > 0 )
+-	{
+-		// Get the farthest body.
+-		BodyDistance const& body = queTotal.top( );
+-
+-		// Fade the body away.
+-		body.m_pBody->StartFade();
+-
+-		// Go to the next farthest body.
+-		queTotal.pop( );
++		int nTotalCount = LTMAX( 0,
++			static_cast<int>( queTotal.size( )) -
++			static_cast<int>( lstBodiesStartingFade.size( )) -
++			nBodyCapTotalCount );
++		while( nTotalCount > 0 && !queTotal.empty( ))
++		{
++			// The total queue also contains bodies already selected by the
++			// radius pass. Skip those entries so each required fade selects a
++			// distinct body and the level-wide budget cannot under-evict.
++			CCharacter* pBody = queTotal.top( ).m_pBody;
++			queTotal.pop( );
++			if( std::find( lstBodiesStartingFade.begin( ), lstBodiesStartingFade.end( ), pBody ) !=
++				lstBodiesStartingFade.end( ))
++			{
++				continue;
++			}
+@@ -5073,2 +5340,4 @@ void CCharacter::CapNumberOfBodies( )
+-		// Count off this body.
+-		nTotalCount--;
++			pBody->StartFade();
++			lstBodiesStartingFade.push_back( pBody );
++			--nTotalCount;
++		}
+@@ -5077 +5345,0 @@ void CCharacter::CapNumberOfBodies( )
+-}
+@@ -5268,0 +5537,5 @@ void CCharacter::HandleSever(ModelsDB::HSEVERPIECE hPiece)
++{
++	HandleSeverWithImpulse(hPiece, m_damage.GetDeathDir(), m_damage.GetDeathImpulseForce());
++}
++
++void CCharacter::HandleSeverWithImpulse(ModelsDB::HSEVERPIECE hPiece, const LTVector& vSeverDir, float fImpulseForce)
+@@ -5271,0 +5545,2 @@ void CCharacter::HandleSever(ModelsDB::HSEVERPIECE hPiece)
++	MarkEnhancedGoreSeveredLocation(g_pModelsDB->GetSPLocation(hPiece));
++
+@@ -5323,0 +5599,13 @@ void CCharacter::HandleSever(ModelsDB::HSEVERPIECE hPiece)
++	SendSeverMessage( NULL, g_pModelsDB->GetSPLocation(hPiece), vSeverDir, fImpulseForce * fForceMod );
++
++
++	//remove anything attached to the severed piece
++	uint32 nSockets = g_pModelsDB->GetSPNumSockets(hPiece);
++	for (uint32 n = 0; n < nSockets; ++n)
++	{
++		m_pAttachments->HandleSever(g_pModelsDB->GetSPSocket(hPiece,n),vSeverDir);
++	}
++}
++
++void CCharacter::SendSeverMessage( HCLIENT hClient, HitLocation eHitLocation, const LTVector& vSeverDir, float fImpulseForce )
++{
+@@ -5329,3 +5617,3 @@ void CCharacter::HandleSever(ModelsDB::HSEVERPIECE hPiece)
+-	cMsg.Writeuint8(g_pModelsDB->GetSPLocation(hPiece));
+-	cMsg.WriteCompLTPolarCoord(LTPolarCoord(m_damage.GetDeathDir()));
+-	cMsg.Writefloat(m_damage.GetDeathImpulseForce() * fForceMod);
++	cMsg.Writeuint8(eHitLocation);
++	cMsg.WriteCompLTPolarCoord(LTPolarCoord(vSeverDir));
++	cMsg.Writefloat(fImpulseForce);
+@@ -5336,9 +5624 @@ void CCharacter::HandleSever(ModelsDB::HSEVERPIECE hPiece)
+-	g_pLTServer->SendToClient(cMsg.Read(), NULL, MESSAGE_GUARANTEED);
+-
+-
+-	//remove anything attached to the severed piece
+-	uint32 nSockets = g_pModelsDB->GetSPNumSockets(hPiece);
+-	for (uint32 n = 0; n < nSockets; ++n)
+-	{
+-		m_pAttachments->HandleSever(g_pModelsDB->GetSPSocket(hPiece,n),m_damage.GetDeathDir());
+-	}
++	g_pLTServer->SendToClient(cMsg.Read(), hClient, MESSAGE_GUARANTEED);
+diff --git base/ObjectDLL/Character.h modified/ObjectDLL/Character.h
+index 8fb507eb916161899c489c07f36caf89acf899b6..26f47392217a682dae9d31a7bfff7cfc779122e4 100644
+--- base/ObjectDLL/Character.h
++++ modified/ObjectDLL/Character.h
+@@ -93,0 +94 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
++		bool			ApplyDamageFilter( DamageStruct *pDamageStruct );
+@@ -100,0 +102 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
++		void ReplayEnhancedGoreSeversToClient( HCLIENT hClient );
+@@ -157 +159,6 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
+-		void			SetModelNodeLastHit( ModelsDB::HNODE hModelNodeLastHit)	{ m_hModelNodeLastHit = hModelNodeLastHit; }
++		void			SetModelNodeLastHit( ModelsDB::HNODE hModelNodeLastHit)
++		{
++			m_hModelNodeLastHit = hModelNodeLastHit;
++			m_bModelNodeHitPending = (hModelNodeLastHit != NULL);
++		}
++		void			ClearPendingModelNodeHit() { m_bModelNodeHitPending = false; }
+@@ -323,0 +331,2 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
++		void			HandleSeverWithImpulse(ModelsDB::HSEVERPIECE hPiece, const LTVector& vSeverDir, float fImpulseForce);
++		void			SendSeverMessage( HCLIENT hClient, HitLocation eHitLocation, const LTVector& vSeverDir, float fImpulseForce );
+@@ -324,0 +334,4 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
++		bool			ProcessEnhancedGoreDamage(const DamageStruct& rDamage);
++		bool			HasEnhancedGoreSeveredLocation(HitLocation eLocation) const;
++		void			MarkEnhancedGoreSeveredLocation(HitLocation eLocation);
++		uint32			GetEnhancedGoreSeverCount() const;
+@@ -482,0 +496 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
++		DamageTracker		m_EnhancedGoreDamageTracker;	// persistent postmortem damage accumulator
+@@ -492,0 +507 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
++		uint8				m_nEnhancedGoreSeveredLocations;	//saved de-duplication mask for postmortem severs
+@@ -500,0 +516,4 @@ class CCharacter : public GameBase, public IHitBoxUser, public IPlayerTrackerRec
++		DamageStruct		m_LastFilteredDamage;			// filtered damage for the current message dispatch
++		bool				m_bLastDamageFilterAccepted;	// current damage passed the registered filter
++		bool				m_bModelNodeHitPending;		// last-hit node belongs to the current damage dispatch
++
+diff --git base/ObjectDLL/DamageTracker.cpp modified/ObjectDLL/DamageTracker.cpp
+index 24b24e47b08d063845ff47f3c24791bbaf6cad81..1f8f83f6a85f22f1052cd53864f5410a31c253f3 100644
+--- base/ObjectDLL/DamageTracker.cpp
++++ modified/ObjectDLL/DamageTracker.cpp
+@@ -63,0 +64,31 @@ void DamageTracker::Clear()
++// ----------------------------------------------------------------------- //
++//
++//	ROUTINE:	DamageTracker::Save()/Load()
++//
++//	PURPOSE:	Persist accumulated damage without exposing tracker internals.
++//
++// ----------------------------------------------------------------------- //
++void DamageTracker::Save(ILTMessage_Write* pMsg) const
++{
++	for (uint32 nDamageType = 0; nDamageType < kNumDamageTypes; ++nDamageType)
++	{
++		pMsg->Writefloat(m_Records[nDamageType].fTotal);
++		for (uint32 nLocation = 0; nLocation < HL_NUM_LOCS; ++nLocation)
++		{
++			pMsg->Writefloat(m_Records[nDamageType].fLocation[nLocation]);
++		}
++	}
++}
++
++void DamageTracker::Load(ILTMessage_Read* pMsg)
++{
++	for (uint32 nDamageType = 0; nDamageType < kNumDamageTypes; ++nDamageType)
++	{
++		m_Records[nDamageType].fTotal = pMsg->Readfloat();
++		for (uint32 nLocation = 0; nLocation < HL_NUM_LOCS; ++nLocation)
++		{
++			m_Records[nDamageType].fLocation[nLocation] = pMsg->Readfloat();
++		}
++	}
++}
++
+@@ -233,0 +265,63 @@ bool DamageTracker::CheckForSever(ModelsDB::HSEVERBODY hBody, bool bIsCrouched,
++
++// ----------------------------------------------------------------------- //
++//
++//	ROUTINE:	DamageTracker::CheckForSeverAtLocation()
++//
++//	PURPOSE:	Test accumulated damage for one explicitly hit location.
++//
++// ----------------------------------------------------------------------- //
++ModelsDB::HSEVERPIECE DamageTracker::CheckForSeverAtLocation(ModelsDB::HSEVERBODY hBody, HitLocation eLocation,
++	const ModelsDB::HPieceArray& hSeveredPieces)
++{
++	if (!hBody || eLocation <= HL_UNKNOWN || eLocation >= HL_NUM_LOCS)
++	{
++		return NULL;
++	}
++
++	uint32 nNumPieces = g_pModelsDB->GetBodyNumPieces(hBody);
++	for (uint32 nPiece = 0; nPiece < nNumPieces; ++nPiece)
++	{
++		ModelsDB::HSEVERPIECE hPiece = g_pModelsDB->GetBodyPiece(hBody, nPiece);
++		if (!hPiece || g_pModelsDB->GetSPLocation(hPiece) != eLocation)
++		{
++			continue;
++		}
++
++		bool bFoundExclusion = false;
++		ModelsDB::HPieceArray::const_iterator iterSeveredPiece = hSeveredPieces.begin();
++		while (iterSeveredPiece != hSeveredPieces.end() && !bFoundExclusion)
++		{
++			bFoundExclusion = g_pModelsDB->IsExcludedPiece(hPiece, *iterSeveredPiece);
++			++iterSeveredPiece;
++		}
++
++		if (bFoundExclusion)
++		{
++			continue;
++		}
++
++		ModelsDB::HSEVERDAMAGE hSeverDamage = g_pModelsDB->GetSPDamageRecord(hPiece);
++		if (!hSeverDamage)
++		{
++			continue;
++		}
++
++		for (uint32 nDamageType = 0; nDamageType < kNumDamageTypes; ++nDamageType)
++		{
++			DamageType eDamageType = static_cast<DamageType>(nDamageType);
++			float fDamage = m_Records[eDamageType].fLocation[eLocation];
++			if (fDamage <= 0.0f)
++			{
++				continue;
++			}
++
++			float fChance = g_pModelsDB->GetSeverChance(hSeverDamage, eDamageType, fDamage);
++			if (GetRandom(0.0f, 1.0f) < fChance)
++			{
++				return hPiece;
++			}
++		}
++	}
++
++	return NULL;
++}
+diff --git base/ObjectDLL/DamageTracker.h modified/ObjectDLL/DamageTracker.h
+index 7b7f59d749e400db609ce4fded25ec8a6603f505..4a671ad7190c3186f14aa409454e94af25c10046 100644
+--- base/ObjectDLL/DamageTracker.h
++++ modified/ObjectDLL/DamageTracker.h
+@@ -41,0 +42,2 @@ public:
++	void	Save(ILTMessage_Write* pMsg) const;
++	void	Load(ILTMessage_Read* pMsg);
+@@ -46,0 +49,2 @@ public:
++	ModelsDB::HSEVERPIECE CheckForSeverAtLocation(ModelsDB::HSEVERBODY hBody, HitLocation eLocation,
++		const ModelsDB::HPieceArray& hSeveredPieces);
+diff --git base/ObjectDLL/GameServerShell.cpp modified/ObjectDLL/GameServerShell.cpp
+index 279b6397533f76d7e4b55abb2716f1049243a050..937614f61e18f2cc3f9d97490294b32a488282df 100644
+--- base/ObjectDLL/GameServerShell.cpp
++++ modified/ObjectDLL/GameServerShell.cpp
+@@ -36,0 +37 @@
++#include "AIProfiler.h"
+@@ -68,0 +70 @@
++#include "FearMoreRuntimeControls.h"
+@@ -70,0 +73,2 @@
++#include <float.h>
++#include <stdlib.h>
+@@ -89,0 +94,44 @@ const uint32 k_nRepublishDelay = 5000;
++static bool HandleFearMoreSinglePlayerCVar( HCLIENT hSender, char const* pszCommand )
++{
++	ConParse parse;
++	parse.Init( pszCommand );
++	if( g_pCommonLT->Parse( &parse ) != LT_OK || parse.m_nArgs == 0 ||
++		!LTStrIEquals( parse.m_Args[0], FearMoreRuntimeControls::kForwardCommand ))
++	{
++		return false;
++	}
++
++	// Consume malformed or unauthorized forms of this private command instead
++	// of falling through to the general command manager.  This bridge is only
++	// for the in-process single-player server, in every build configuration.
++	if( parse.m_nArgs != 3 || !hSender ||
++		!( g_pLTServer->GetClientInfoFlags( hSender ) & CIF_LOCAL ) ||
++		IsMultiplayerGameServer( ))
++	{
++		return true;
++	}
++
++	char const* pszAllowedVariable = NULL;
++	for( uint32 nVariable = 0; nVariable < LTARRAYSIZE( FearMoreRuntimeControls::kForwardedVariables ); ++nVariable )
++	{
++		if( LTStrIEquals( parse.m_Args[1], FearMoreRuntimeControls::kForwardedVariables[nVariable] ))
++		{
++			pszAllowedVariable = FearMoreRuntimeControls::kForwardedVariables[nVariable];
++			break;
++		}
++	}
++
++	if( pszAllowedVariable )
++	{
++		char* pszValueEnd = NULL;
++		double fParsedValue = strtod( parse.m_Args[2], &pszValueEnd );
++		if( pszValueEnd != parse.m_Args[2] && pszValueEnd && *pszValueEnd == '\0' &&
++			_finite( fParsedValue ) && fParsedValue >= -FLT_MAX && fParsedValue <= FLT_MAX )
++		{
++			g_pLTServer->SetConsoleVariableFloat( pszAllowedVariable, (float)fParsedValue );
++		}
++	}
++
++	return true;
++}
++
+@@ -636,0 +685 @@ void CGameServerShell::OnServerTerm()
++	CAIProfiler::Instance().Shutdown();
+@@ -2352,0 +2402,6 @@ void CGameServerShell::HandleConsoleCommand (HCLIENT hSender, ILTMessage_Read* p
++	char szCommand[256];
++	pMsg->ReadString(szCommand,LTARRAYSIZE(szCommand));
++	if( HandleFearMoreSinglePlayerCVar( hSender, szCommand ))
++	{
++		return;
++	}
+@@ -2361,3 +2415,0 @@ void CGameServerShell::HandleConsoleCommand (HCLIENT hSender, ILTMessage_Read* p
+-	char szCommand[256];
+-	pMsg->ReadString(szCommand,LTARRAYSIZE(szCommand));
+-
+@@ -3472,0 +3525,2 @@ void CGameServerShell::PreUpdate()
++	CAIProfiler::Instance().BeginServerFrame();
++
+@@ -3588,0 +3643,2 @@ void CGameServerShell::PostUpdate()
++
++	CAIProfiler::Instance().EndServerFrame();
+diff --git base/ObjectDLL/GameServerShell.h modified/ObjectDLL/GameServerShell.h
+index d77a4ea991ba3680004d2636892e68a98aef2de3..8814d0fb045df73ab449a3b99415b5369380b899 100644
+--- base/ObjectDLL/GameServerShell.h
++++ modified/ObjectDLL/GameServerShell.h
+@@ -147,0 +148 @@ class CGameServerShell : public IServerShellStub
++		bool	IsGoreAllowed() const { return m_bGoreAllowed; }
+diff --git base/ObjectDLL/Game_ServerShell.vcproj modified/ObjectDLL/Game_ServerShell.vcproj
+index e9b96ecc645c04a91172c30e046c27941f10d9e5..3681eb28161f3b8c144907b2ae64a26f5b7e9a94 100644
+--- base/ObjectDLL/Game_ServerShell.vcproj
++++ modified/ObjectDLL/Game_ServerShell.vcproj
+@@ -245,0 +246,3 @@ xcopy &quot;$(TargetPath)&quot; &quot;$(OutDir)\..\..\..\Dev\Runtime\Game\&quot;
++			<File
++				RelativePath="AIProfiler.cpp">
++			</File>
+@@ -2041,0 +2045,3 @@ xcopy &quot;$(TargetPath)&quot; &quot;$(OutDir)\..\..\..\Dev\Runtime\Game\&quot;
++			<File
++				RelativePath="AIProfiler.h">
++			</File>
+diff --git base/ObjectDLL/Projectile.cpp modified/ObjectDLL/Projectile.cpp
+index 069ced10e0f6be78dbd1bd6e36961e6c107d971c..635d127d56651f21bb2d2789eeb3fa0418afb9e8 100644
+--- base/ObjectDLL/Projectile.cpp
++++ modified/ObjectDLL/Projectile.cpp
+@@ -2312,0 +2313,14 @@ void CProjectile::ImpactDamageObject(HOBJECT hDamager, HOBJECT hObj, const LTVec
++
++	// Weapon-path intersection records a node before this dispatch.  Direct
++	// damage consumes that context in CCharacter::ObjectMessageFn, but
++	// impulse-only, area-only, and deferred-progressive impacts send no direct
++	// MID_DAMAGE here.  End the projectile dispatch explicitly so a later,
++	// unrelated damage message cannot reuse this hit location for gore.
++	if( IsCharacter( hObj ))
++	{
++		CCharacter* pHitCharacter = dynamic_cast<CCharacter*>(g_pLTServer->HandleToObject( hObj ));
++		if( pHitCharacter )
++		{
++			pHitCharacter->ClearPendingModelNodeHit();
++		}
++	}
+diff --git base/ObjectDLL/ServerConnectionMgr.cpp modified/ObjectDLL/ServerConnectionMgr.cpp
+index 998970279352149884ebe6e6c99deef1b236e3cb..3d81ec920938bafa4a495aa912e294cd2f6abd02 100644
+--- base/ObjectDLL/ServerConnectionMgr.cpp
++++ modified/ObjectDLL/ServerConnectionMgr.cpp
+@@ -19,0 +20 @@
++#include "Character.h"
+@@ -1176,0 +1178,20 @@ bool ConnectionStateMachine::InWorld_OnMessage( MacroStateMachine::EventParams&
++	// Persisted sever replay is a local single-player save/load responsibility.
++	// Multiplayer late-join replication remains unchanged until it has its own
++	// explicit protocol and respawn acceptance pass.
++	if( !IsMultiplayerGameServer( ))
++	{
++		// CharacterFX instances and their server objects now exist on this client.
++		// Recreate detached client-only parts from the persisted server mask, targeted
++		// only at the client whose effects were just rebuilt.
++		CCharacter::CharacterList const& lstCharacters = CCharacter::GetCharacterList( );
++		CCharacter::CharacterList::const_iterator iterCharacter = lstCharacters.begin( );
++		for( ; iterCharacter != lstCharacters.end( ); ++iterCharacter )
++		{
++			CCharacter* pCharacter = *iterCharacter;
++			if( pCharacter )
++			{
++				pCharacter->ReplayEnhancedGoreSeversToClient( m_pGameClientData->GetClient( ));
++			}
++		}
++	}
++
+@@ -2332 +2352,0 @@ bool ServerConnectionMgr::BootWithReason( GameClientData& gameClientData, EClien
+-
+diff --git base/ObjectDLL/ServerSpecialFX.cpp modified/ObjectDLL/ServerSpecialFX.cpp
+index 2cfc2822c5fb263111fe1648477c8b6f44d3a283..9580f19382d5345f0cabd33000c4fd36fb3809ef 100644
+--- base/ObjectDLL/ServerSpecialFX.cpp
++++ modified/ObjectDLL/ServerSpecialFX.cpp
+@@ -526 +526 @@ LTRESULT SpecialFXPlugin::PopulateStringList( const char *szRezPath,
+-	LTSNPrintF( szFile, LTARRAYSIZE(szFile), "%s\\ClientFX\\*."RESEXT_EFFECT_PACKED, szRezPath );
++	LTSNPrintF( szFile, LTARRAYSIZE(szFile), "%s\\ClientFX\\*." RESEXT_EFFECT_PACKED, szRezPath );
+diff --git base/Shared/VersionMgr.cpp modified/Shared/VersionMgr.cpp
+index cce549f19e83fe8f0bfd3f1de0693ff18c9259f3..067a49d3990ea004d0cc537f0a88ce00f7ded384 100644
+--- base/Shared/VersionMgr.cpp
++++ modified/Shared/VersionMgr.cpp
+@@ -41 +41,2 @@ const CVersionMgr::TSaveVersion CVersionMgr::kSaveVersion__1_04 = 255;
+-const CVersionMgr::TSaveVersion CVersionMgr::kSaveVersion__CurrentBuild = s_nBuildNumber;
++const CVersionMgr::TSaveVersion CVersionMgr::kSaveVersion__FearMoreEnhancedGore = 283;
++const CVersionMgr::TSaveVersion CVersionMgr::kSaveVersion__CurrentBuild = CVersionMgr::kSaveVersion__FearMoreEnhancedGore;
+@@ -173 +174 @@ const uint32 CVersionMgr::GetSaveVersion()
+-	return s_nBuildNumber;
++	return kSaveVersion__CurrentBuild;
+diff --git base/Shared/VersionMgr.h modified/Shared/VersionMgr.h
+index 11c3194de6052cabcae20f0f041cd7541027facf..8e8ea717700c511c0560ccf247011d916f7e94b5 100644
+--- base/Shared/VersionMgr.h
++++ modified/Shared/VersionMgr.h
+@@ -67,0 +68 @@ class CVersionMgr
++		static const TSaveVersion	kSaveVersion__FearMoreEnhancedGore;

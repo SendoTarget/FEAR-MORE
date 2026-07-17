@@ -1,0 +1,3 @@
+[submodule "external/EchoPatch"]
+	path = external/EchoPatch
+	url = https://github.com/Wemino/EchoPatch.git

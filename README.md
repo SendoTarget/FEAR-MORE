@@ -1,0 +1,80 @@
+# FearMore
+
+FearMore is a public source-and-build-tooling effort to make F.E.A.R. v1.08 work reliably on modern Windows and extend its presentation without replacing the game's original character. A legally acquired and installed copy of F.E.A.R. v1.08 is required.
+
+## Start here
+
+- [Quick start](QUICKSTART.md) — the shortest path from a legal F.E.A.R. v1.08 installation to the playable Modern or Stable preset.
+- [Credits and original download links](CREDITS.md) — EchoPatch, Rivarez's HD textures, dgVoodoo2, ReShade, SDL3, FidelityFX CAS, and their authors.
+- [Local launcher package](docs/playable-build.md) — what the assembled one-folder build contains and how it is verified.
+- [Project Installer](docs/project-installer.md) — the reproducible one-click builder, prerequisites, and public-repository boundary.
+
+The public repository is [SendoTarget/FEAR-MORE](https://github.com/SendoTarget/FEAR-MORE). It provides project-owned tooling and minimal source deltas, not a standalone game or a public binary release.
+
+## What FearMore adds over retail F.E.A.R.
+
+Only completed, functioning features are listed here; parked RTX research and unfinished experiments are deliberately excluded.
+
+| Feature | What is new in FearMore | Kudos / upstream used |
+| --- | --- | --- |
+| Modern resolutions and ultrawide | Live-tested 3440 x 1440 gameplay, Hor+ presentation, centered 16:9 HUD-safe placement, and aspect-correct handling for pre-rendered video. | FearMore source changes; **EchoPatch** by [Wemino](https://github.com/Wemino/EchoPatch) informed the compatibility work. |
+| D3D11 output and supersampling | A stable D3D9-to-D3D11 path with in-game Native or Max 2x rendering. Max 2x has rendered at 6880 x 2880 and downsampled to 3440 x 1440 in live gameplay. | **dgVoodoo2** by [Dege](https://github.com/dege-diosg/dgVoodoo2). |
+| Sharper modern image | Optional in-game CAS post-processing, acquired from the official source only when selected, with Off retained as the exact fallback. | **ReShade** by [crosire](https://reshade.me/) and **FidelityFX CAS** by [AMD/GPUOpen](https://github.com/GPUOpen-Effects/FidelityFX-CAS). |
+| Higher graphics-quality controls | In-game remaster-quality application for filtering, soft shadows, textures, world detail, render targets, and light LOD, plus a validated High effects target for volumetric-light shadows. | FearMore source implementation using F.E.A.R.'s existing quality systems. |
+| Enhanced gore and persistent bodies | Optional postmortem sever effects and a bounded corpse-persistence budget built from F.E.A.R.'s own damage, decal, ragdoll, sever, and ClientFX systems. | FearMore source implementation; no external gore asset pack is required. |
+| Correct AI behavior at modern frame rates | Preserves F.E.A.R.'s original GOAP/A* combat AI while correcting scheduler timing across validated 60, 120, 144, and near-240 FPS combat runs. | FearMore source implementation; the authored AI behavior is not replaced. |
+| Modern controller support | In-game controller enablement, sensitivity, radial deadzone, invert Y, vibration, and keyboard/mouse coexistence. | **SDL3** by [Sam Lantinga and SDL contributors](https://github.com/libsdl-org/SDL). |
+| Optional stable HD textures | In-game Stable Lite selection with exact package validation and isolated mounting; the Lite path passed the known Full-pack level-transition crash gate. | **F.E.A.R. HD Textures v2.0.2 + Lite Pack** by [Rivarez](https://www.moddb.com/downloads/fear-hd-textures-v202). Textures remain private/local because public redistribution rights are not established. |
+| Easier, safer launching | One-click Modern/Stable presets, automatic retail detection, isolated profiles and runtime stages, guarded LAA preparation for HD textures, and no retail-install overwrite. | **EchoPatch** by [Wemino](https://github.com/Wemino/EchoPatch), plus FearMore's package and staging tools. |
+
+## Current direction
+
+- Establish a stock-compatible 32-bit build before changing gameplay.
+- Use the original GOAP/A* AI architecture. Initial AI work is limited to modern-framerate correctness, diagnostics, and measured tuning.
+- Prioritize an opt-in **Enhanced Gore** mode built on F.E.A.R.'s existing sever, decal, ClientFX, attachment, ragdoll, and damage-database systems, with a separate bounded corpse-persistence budget rather than unlimited world persistence.
+- Treat 3440 x 1440 and the common 21:9/32:9 modes as required gameplay targets: preserve vertical FOV, expand horizontally, and keep HUD interaction usable. Pre-rendered videos may retain aspect-correct black bars.
+- Use EchoPatch with the unmodified retail modules as the immediate compatibility layer and as a reference for supersampling, high-resolution UI, high-FPS fixes, and persistent world effects.
+- Make the rebuilt dgVoodoo2 D3D11 lane the primary playable remaster path, with optional desktop-derived **Max 2x** downsampling and conservative CAS sharpening; keep native rendering and post-processing Off as exact fallbacks.
+- Keep optional third-party texture content local: validate exact packages, select them in game, and mount them through a manifest-owned no-write tooling boundary only after restart.
+- Use a source-owned SDL3 controller path in rebuilt clients, with in-game settings, keyboard/mouse coexistence, and validated local runtime acquisition; keep EchoPatch's GPL game-module hooks disabled.
+- Keep retail archives, extracted game assets, compiled proprietary tools, and local runtime overlays outside Git.
+
+See [the build guide](docs/building.md), [runtime staging guide](tools/runtime/README.md), [modern display and rendering plan](docs/modern-rendering.md), [controller support](docs/controller-support.md), [Enhanced Gore slice](docs/enhanced-gore.md), [AI timing correction](docs/ai-timing.md), [asset-sourcing rules](docs/asset-sourcing.md), [roadmap](docs/roadmap.md), [code map](docs/code-map.md), [source provenance notes](docs/source-provenance.md), and [reference implementation survey](docs/reference-implementations.md) for the deeper technical record.
+
+## Repository boundary
+
+The public repository contains project-owned scripts, tests, documentation, a minimal SDK-relative patch, new-source overlay, build scaffold, and pinned EchoPatch submodule. It deliberately excludes the F.E.A.R. Public Tools SDK base, inherited F.E.A.R./LithTech tree, retail files, proprietary middleware, downloaded third-party binaries/assets, compiled modules, runtime stages, and generated installers.
+
+`tools/public/Initialize-FearMoreModuleSource.ps1` reconstructs the working module tree locally from an owner-supplied official Public Tools 1.08 `Source` directory. `FEAR`, `vendor-local`, `build`, `local-runtime`, and `dist` remain ignored. See [source provenance](docs/source-provenance.md) for the exact boundary.
+
+## Current build state
+
+The first compile milestone is complete. Visual Studio 2022 with the v141 toolset now builds the F.E.A.R. v1.08 game modules as 32-bit Debug and Release artifacts:
+
+- `GameClient.dll`
+- `GameServer.dll`
+- `ClientFx.fxd`
+
+The build uses the official F.E.A.R. Public Tools 1.08 `Source` directory as a local-only SDK input. That input is not committed. Configuration fails early with a useful message if it is absent or incomplete.
+
+Source-owned gameplay work now includes an opt-in postmortem Enhanced Gore vertical slice, a bounded single-player corpse-persistence option, and a high-framerate AI scheduler correction that preserves the original GOAP planner. New Modern profiles enable Enhanced Gore and the 4096/24/48 corpse budget by default; existing profiles are never rewritten, and Corpse persistence Off preserves F.E.A.R.'s original performance-derived caps. Both choices live on the Gameplay screen, while the server's gore compatibility default remains off and stock Gore/low-violence policy still takes precedence. A rebuilt single-player combat pass confirmed postmortem sever presentation plus quick-save/reload persistence, while the current body-budget and broader gore live matrices remain open. The D3D11 `ATC_Roof` AI gate passed 30-second active-combat windows at measured 60.000, 119.909, 143.901, and 237.541 FPS for representative 60/120/144/near-240 targets, plus bidirectional 60-to-240 and 240-to-60 combat-save restoration with zero AI-starvation frames. The near-240 scheduler/AI gate used 640x480 because 3440x1440 was GPU-limited; the other three gates used 3440x1440. The modern-display slice corrects vertical scope geometry, adds a centered 16:9 HUD safe area with a full-width override, and keeps ordinary gameplay full-width Hor+. The opening ATC helicopter composition is owned by its scripted `PlayerLure` sequence (`Heli_Sit`, crosshair off, and follow-lure behavior), not a `CT_LETTERBOX` CameraFX. A live 3440 x 1440 Modern replay confirmed the narrow correction's centered 16:9 composition, hid the off-stage duplicate geometry, and cleared back to full-width checkpoint gameplay; Native replay and ordinary campaign-entry coverage remain open.
+
+For the local user-owned installation, [`Launch FearMore.cmd`](Launch%20FearMore.cmd) is the one-click entry point for the normal Stable and Modern paths. Its default `Modern` preset prepares rebuilt Release modules, dgVoodoo2 D3D11 output, isolated engine-only EchoPatch, and a 144 FPS cap. The explicit `-Preset Stable` native-D3D9 path remains the rollback and renderer-control lane. Live 3440 x 1440 rooftop gameplay passed both Native and Max 2x renderer-quality modes. In the Max 2x pass, ReShade's log identified a 6880 x 2880 D3D11 swapchain downsampled to 3440 x 1440, compiled `FearMoreCAS`, survived three alt-tab cycles, rendered gameplay, and shut down cleanly. A new machine's first use of optional HD textures still requires the player to accept EchoPatch's one-time LAA prompt, but `Invoke-FearLaaBootstrap.ps1` now prepares the disposable copy, launches that guided prompt, and attests the resulting executable/backup pair. It never patches the retail installation.
+
+The rebuilt menus now own the restart-bound choices under **Options > Display**: **Renderer quality** (Native / Max 2x), **Effects target** (Native / High), **Post-processing** (Off / CAS), and immediate **HUD placement** (Centered 16:9 / Full width). Effects target High doubles only the source-proven volumetric-light shadow depth target; authored mirror/reflection targets remain at their native dimensions because scaling only their allocations corrupted their material sampling. The corrected High path passed the same 3440 x 1440 Interval 01 -> Interval 02 replay with Stable Lite, Max 2x, and CAS and remained correctly rendered through live container-yard gameplay. **Options > Performance > Apply remaster quality** queues the retail-authored maximum-detail values for trilinear and anisotropic filtering, soft shadows, texture resolution, world detail, render targets, and light LOD. Its hidden resolution controls are seeded from the active display profile, preventing stale bootstrap dimensions from replacing the selected mode when the preset is applied. Native rendering and post-processing Off remain supported fallbacks; Max 2x and CAS are opt-in quality costs, not requirements.
+
+Rebuilt clients also have source-owned SDL3 controller input under **Options > Controls > Joystick**: enable/disable, sensitivity, radial deadzone, controller-only invert Y, and authored ClientFX vibration. A fresh Modern profile enables it; Stable, diagnostic, existing, and source-fallback profiles leave it off so the legacy controller path is preserved until the player opts in. The one-click launcher acquires and validates the official SDL 3.4.10 x86 runtime, stages its zlib license, and leaves keyboard/mouse plus legacy-controller fallback intact. Automated source/package/build checks pass; a physical-controller gameplay matrix is still required before live acceptance.
+
+RTX Remix work is parked for a possible future revisit rather than removed. Its isolated `RtxLab` stage, diagnostics, and evidence remain available, but the lane is unverified and nondefault: path tracing, scene completeness, stability, DLSS, and ray reconstruction are not claimed. See the [runtime staging guide](tools/runtime/README.md#one-click-launcher).
+
+The user-supplied F.E.A.R. HD Textures v2.0.2 package can be combined locally with Rivarez's official Lite overlay and selected under **Options > Game > HD textures > Stable Lite (recommended)**. The launcher applies the saved mode on the next start, validates the exact 1,882-file result, uses an attested private LAA executable, and mounts the base-game tree above retail and rebuilt resources. FearMore's tools reject writes through that manifest-owned junction; Windows does not apply a read-only ACL to the source tree. Off removes the mount and restores the retail executable in the disposable stage. Stable Lite passed the exact save and Interval 01 -> Interval 02 transition that deterministically crashed Full, then remained live through helicopter insertion into container-yard gameplay at 3440 x 1440 with Max 2x and CAS; no new crash dump was emitted. This is a focused regression pass, not a full-campaign certification. **Full v2.0.2 remains an experimental opt-in:** repeated tests hit the same `d3dx9_27.dll` access violation at that level/checkpoint transition even with Native renderer resolution, CAS Off, and native effects targets; HD Off crossed it too. The earlier fresh F5/F9 round trip therefore did not establish campaign stability. No retail file or third-party texture asset is committed to Git or copied into a public release. The ignored private Project Installer builder can embed the owner's already downloaded Stable Lite tree for another legal game owner; that local artifact is explicitly non-redistributable and must not be uploaded.
+
+The runtime staging tool keeps stock retail plus pinned EchoPatch, rebuilt modules, and the non-launching SDK layout smoke check isolated. Stock and rebuilt stages use separate profile/save roots. The project-owned [engine-only EchoPatch build workflow](tools/echopatch/README.md) produces a pinned PE32 derivative that skips all retail game-module hooks; only an explicit rebuilt runtime mode consumes that validated local package. This is not a turnkey standalone engine build. Representative D3D11 ultrawide, focus-recovery, clean-shutdown, active-AI, and cross-cap combat-save gates have passed, while full-campaign, broader save coverage, renderer parity, and the complete resolution matrix remain open. The old Jupiter engine executable remains a separate investigation until its API compatibility with the F.E.A.R. game code is proven.
+
+## External source
+
+`external/EchoPatch` is kept as a pinned GPL-3.0 submodule. The stock-retail lane uses it as its own `dinput8.dll` for SSAA, modern resolutions, HUD scaling, high-FPS corrections, and persistent world effects. Its game-module patches use retail signatures and offsets, so compatibility with rebuilt `GameClient.dll`, `GameServer.dll`, or `ClientFx.fxd` is never assumed. Rebuilt modules still run without EchoPatch by default; explicit runtime modes may consume only the pinned local engine-only or Remix-diagnostic derivatives that prove `PatchGameModules=0` and keep module-dependent features disabled. The tracked compatibility/diagnostic patches and build proof stay on EchoPatch's GPL side and preserve upstream behavior by default.
+
+## Game ownership and redistribution
+
+FearMore requires a legally acquired and installed copy of F.E.A.R. v1.08; it is not a standalone game and does not include the retail executable, campaign files, audio, video, or other assets. Public access to this repository is not a grant to redistribute F.E.A.R., the Public Tools SDK, third-party assets, proprietary middleware, or locally generated combined binaries. Component licenses and upstream terms continue to apply; see [CREDITS.md](CREDITS.md).

@@ -1,0 +1,44 @@
+FEARMORE PRIVATE OWNER BUILD - NOT A PUBLIC RELEASE
+
+This package is a convenience copy for an owner who already possesses a legal
+F.E.A.R. v1.08 installation. It contains no retail executable, retail archives,
+HD texture files, saves, profiles, crash evidence, or user-specific registration.
+
+Normal Stable/Modern launches are one-click after prerequisites are present.
+Optional HD textures have one additional fresh-machine prerequisite: the owner must
+use the packaged stock EchoPatch lane once to create a private, attested LAA
+FEAR.exe/backup pair under %LOCALAPPDATA%\FearMore. That pair is created from
+the owner's own retail executable, is never written back to the retail install,
+is not bundled here, and must not be uploaded or shared. The current package
+does not automate that first EchoPatch launch/restart; see QUICKSTART.md.
+
+The rebuilt game modules inherit unresolved F.E.A.R./LithTech provenance, and
+the package also contains separately licensed pinned local dependencies. Do not
+upload, publish, sell, mirror, or redistribute this binary package until every
+component has completed a dedicated license and source-provenance review.
+
+Public project source:
+https://github.com/SendoTarget/FEAR-MORE
+
+Upstream components and credits:
+- EchoPatch 4.2.1 by Wemino:
+  https://github.com/Wemino/EchoPatch/releases/tag/4.2.1
+- F.E.A.R. HD Textures v2.0.2 by Rivarez (optional, user-supplied, not bundled):
+  https://www.moddb.com/downloads/fear-hd-textures-v202
+- HD Textures Lite Pack by Rivarez (recommended stability overlay, not bundled):
+  https://www.moddb.com/mods/fear-xp-rivarez-mod/downloads/fear-hd-textures-lite-pack
+  Full v2.0.2 is experimental in FearMore because it reproduced a d3dx9 level-transition crash.
+- dgVoodoo2 2.87.3 by Dege:
+  https://github.com/dege-diosg/dgVoodoo2/releases/tag/v2.87.3
+  https://github.com/dege-diosg/dgVoodoo2/releases/download/v2.87.3/dgVoodoo2_87_3.zip
+- ReShade 6.7.3 by crosire / Patrick Mours:
+  https://reshade.me/
+  https://reshade.me/downloads/ReShade_Setup_6.7.3.exe
+- SDL 3.4.10 by Sam Lantinga and SDL contributors:
+  https://github.com/libsdl-org/SDL/releases/tag/release-3.4.10
+  https://github.com/libsdl-org/SDL/releases/download/release-3.4.10/SDL3-3.4.10-win32-x86.zip
+- AMD FidelityFX CAS reference:
+  https://github.com/GPUOpen-Effects/FidelityFX-CAS
+
+The license and notice files carried inside the pinned dependency packages
+remain authoritative for those components.

@@ -1,0 +1,22 @@
+FEARMORE PRIVATE PROJECT INSTALLER
+
+This installer is for game owners in the same household. Each player must own
+and install a legal F.E.A.R. v1.08 retail copy. FearMore detects that installed
+copy and builds a separate runtime under the current Windows account; it does
+not include the retail game and does not patch the retail installation.
+
+This private installer includes the locally supplied Rivarez FEAR HD Textures
+v2.0.2 Lite package. Permission to redistribute that texture package publicly
+has not been established, so do not upload, publish, mirror, or attach this
+installer to a GitHub release. The public FearMore repository links to the
+original texture-pack page instead.
+
+ReShade is not bundled. If CAS is enabled in FearMore's in-game graphics
+options, the launcher downloads the pinned official ReShade setup directly,
+validates its signed identity, and stages only the required local files.
+
+Uninstall removes the validated FearMore launcher. Saves, settings, runtime
+stages, downloaded dependencies, and the private HD Lite files are preserved so
+that uninstall cannot silently destroy player data or a separately sourced
+texture pack. They can be removed manually from %LOCALAPPDATA%\FearMore after
+backing up any wanted saves.

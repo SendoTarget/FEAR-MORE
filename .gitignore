@@ -1,0 +1,47 @@
+# Codex/app-local state
+/.agents/
+/.codex/
+
+# Locally reconstructed SDK-derived source and proprietary/runtime material
+/FEAR/
+/retail/
+/local-runtime/
+/vendor-local/
+/artifacts/
+/dist/
+
+# CMake and build trees
+/build/
+/out/
+/cmake-build-*/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/CTestTestfile.cmake
+**/Testing/
+compile_commands.json
+
+# Visual Studio and compiler output
+.vs/
+*.obj
+*.pch
+*.ilk
+*.idb
+*.tlog
+*.lastbuildstate
+*.suo
+*.user
+*.ncb
+*.VC.db
+*.VC.VC.opendb
+*.aps
+*.vspscc
+
+# Generated files
+*.bak
+
+# Retail archives and local player data
+*.Arch00
+*.Arch00?
+*.sav
+*.log

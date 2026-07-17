@@ -1,0 +1,39 @@
+diff --git a/src/Globals.cpp b/src/Globals.cpp
+--- a/src/Globals.cpp
++++ b/src/Globals.cpp
+@@ -305,5 +305,6 @@ GlobalState g_State;
+ // Compatibility
+ bool PatchGameModules = true;
++bool PreserveRtxRendererOnFocusChange = false;
+ 
+ // Diagnostics
+ bool EnableCameraDiagnostics = false;
+diff --git a/src/Initialization.cpp b/src/Initialization.cpp
+--- a/src/Initialization.cpp
++++ b/src/Initialization.cpp
+@@ -15,5 +15,6 @@ static void ReadConfig()
+     // Compatibility
+     PatchGameModules = IniHelper::ReadInteger("Compatibility", "PatchGameModules", 1) == 1;
++    PreserveRtxRendererOnFocusChange = IniHelper::ReadInteger("Compatibility", "PreserveRtxRendererOnFocusChange", 0) == 1;
+ 
+     // Diagnostics
+     EnableCameraDiagnostics = IniHelper::ReadInteger("Diagnostics", "CameraDiagnostics", 0) == 1;
+@@ -348,6 +349,7 @@ static void Init()
+     ApplyFixKeyboardInputLanguage();
+     ApplyFixScriptedAnimationCrash();
+     ApplyFixWindow();
++    ApplyRtxFocusPreservation();
+ 
+     // Display
+     ApplyAutoResolution();
+diff --git a/src/dllmain.cpp b/src/dllmain.cpp
+--- a/src/dllmain.cpp
++++ b/src/dllmain.cpp
+@@ -6,6 +6,7 @@
+ #include "Engine/ReducedMipMapBias/ReducedMipMapBias.cpp"
+ #include "Engine/ClientHook/ClientHook.cpp"
+ #include "Engine/ConsoleVariableHook/ConsoleVariableHook.cpp"
++#include "Engine/RtxFocusPreservation/RtxFocusPreservation.cpp"
+ #include "Engine/FixKeyboardInputLanguage/FixKeyboardInputLanguage.cpp"
+ #include "Engine/FixAspectRatioBlur/FixAspectRatioBlur.cpp"
+ #include "Engine/HighFPSFixes/HighFPSFixes.cpp"

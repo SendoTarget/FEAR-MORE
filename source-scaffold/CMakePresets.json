@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "fear-win32",
+      "displayName": "F.E.A.R. v1.08 game modules (Win32)",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "Win32",
+      "toolset": "v141",
+      "binaryDir": "${sourceDir}/../../../build/fear-win32"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "fear-win32-debug",
+      "configurePreset": "fear-win32",
+      "configuration": "Debug",
+      "jobs": 1,
+      "targets": ["ClientFx", "ClientShell", "GameServer"]
+    },
+    {
+      "name": "fear-win32-release",
+      "configurePreset": "fear-win32",
+      "configuration": "Release",
+      "jobs": 1,
+      "targets": ["ClientFx", "ClientShell", "GameServer"]
+    }
+  ]
+}
