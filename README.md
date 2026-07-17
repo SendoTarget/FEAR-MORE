@@ -4,12 +4,13 @@ FearMore is a public source-and-build-tooling effort to make F.E.A.R. v1.08 work
 
 ## Start here
 
+- **Simplest install:** download and run **FearMore-Project-Installer-Bootstrap.exe** from [GitHub Releases](https://github.com/SendoTarget/FEAR-MORE/releases). It guides the legal owner through Public Tools setup and builds the playable installer locally.
 - [Quick start](QUICKSTART.md) — the shortest path from a legal F.E.A.R. v1.08 installation to the playable Modern or Stable preset.
 - [Credits and original download links](CREDITS.md) — EchoPatch, Rivarez's HD textures, dgVoodoo2, ReShade, SDL3, FidelityFX CAS, and their authors.
 - [Local launcher package](docs/playable-build.md) — what the assembled one-folder build contains and how it is verified.
 - [Project Installer](docs/project-installer.md) — the reproducible one-click builder, prerequisites, and public-repository boundary.
 
-The public repository is [SendoTarget/FEAR-MORE](https://github.com/SendoTarget/FEAR-MORE). It provides project-owned tooling and minimal source deltas, not a standalone game or a public binary release.
+The public repository is [SendoTarget/FEAR-MORE](https://github.com/SendoTarget/FEAR-MORE). It provides project-owned tooling, minimal source deltas, and a scripts-only bootstrap—not a standalone game or a public playable build.
 
 ## What FearMore adds over retail F.E.A.R.
 
@@ -43,7 +44,7 @@ See [the build guide](docs/building.md), [runtime staging guide](tools/runtime/R
 
 ## Repository boundary
 
-The public repository contains project-owned scripts, tests, documentation, a minimal SDK-relative patch, new-source overlay, build scaffold, and pinned EchoPatch submodule. It deliberately excludes the F.E.A.R. Public Tools SDK base, inherited F.E.A.R./LithTech tree, retail files, proprietary middleware, downloaded third-party binaries/assets, compiled modules, runtime stages, and generated installers.
+The public repository contains project-owned scripts, tests, documentation, a minimal SDK-relative patch, new-source overlay, build scaffold, pinned EchoPatch submodule, and a small bootstrap that builds the private playable installer locally. It deliberately excludes the F.E.A.R. Public Tools SDK base, inherited F.E.A.R./LithTech tree, retail files, proprietary middleware, downloaded third-party binaries/assets, compiled modules, runtime stages, and generated playable installers.
 
 `tools/public/Initialize-FearMoreModuleSource.ps1` reconstructs the working module tree locally from an owner-supplied official Public Tools 1.08 `Source` directory. `FEAR`, `vendor-local`, `build`, `local-runtime`, and `dist` remain ignored. See [source provenance](docs/source-provenance.md) for the exact boundary.
 

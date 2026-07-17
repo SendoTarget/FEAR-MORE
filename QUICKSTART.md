@@ -4,7 +4,17 @@ FearMore requires a legally acquired and installed copy of F.E.A.R. v1.08. It is
 
 Repository: [SendoTarget/FEAR-MORE](https://github.com/SendoTarget/FEAR-MORE)
 
-## Install with a prepared Project Installer
+## Simplest route: Project Installer Bootstrap
+
+1. Install F.E.A.R. v1.08 and start it once. Steam owners should leave Steam running and signed in.
+2. Download **FearMore-Project-Installer-Bootstrap.exe** from [GitHub Releases](https://github.com/SendoTarget/FEAR-MORE/releases).
+3. Run it and leave **Build and install FearMore now** selected. Windows may show an unsigned-publisher warning and request administrator approval for public build tools.
+4. When asked for F.E.A.R. Public Tools 1.08, first check the installed game's `extras\fear_publictools_108.exe`. Otherwise let the bootstrap open the [verified SDK v1.08 download page](https://www.ausgamers.com/files/download/25133/fear-sdk-v108).
+5. Install Public Tools and select its folder named `Source`—not the retail game folder. FearMore then builds and opens the local playable setup.
+
+The bootstrap is deliberately small: it contains no game, SDK, HD-texture, compiled FearMore-module, or third-party runtime binaries. It may download several gigabytes because Visual Studio build tools and all permitted dependencies are acquired on the user's PC.
+
+## Install with an already prepared local Project Installer
 
 1. Install F.E.A.R. v1.08 and start it once. Steam owners should leave Steam running and signed in.
 2. Keep `FearMore-Setup.exe` and every adjacent `.bin` file together, then run the setup.
@@ -66,6 +76,14 @@ dist\local\FearMore-Project-Installer
 ```
 
 The default build excludes optional HD textures, so it works without third-party texture files. See [Project Installer](docs/project-installer.md) for custom SDK/output paths, HD Lite packaging, troubleshooting, and the exact redistribution boundary.
+
+### Finding the official Public Tools
+
+- Steam distributions may include `fear_publictools_108.exe` under the installed game's `extras` folder.
+- A verified historical mirror is [AusGamers: F.E.A.R. SDK v1.08](https://www.ausgamers.com/files/download/25133/fear-sdk-v108). Its listing identifies `fear_publictools_108.exe` as 671,441,087 bytes with SHA-1 `25b16fc70cf93027779e6f1fd673996d27ad5d84`.
+- [GameFront's F.E.A.R. v1.08 SDK page](https://www.gamefront.com/games/f-e-a-r/file/f-e-a-r-v1-08-sdk) is an alternative historical listing.
+
+Use Public Tools **1.08**. FearMore validates the SDK's expected source files and rejects a retail installation folder or an incomplete extraction.
 
 ## Optional HD textures by Rivarez
 

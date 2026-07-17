@@ -77,6 +77,16 @@ try {
             throw "Project Installer orchestrator is missing its required delegation contract: $required"
         }
     }
+    $packageBuilderSource = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'New-FearMoreInstallerPackage.ps1'))
+    foreach ($required in @(
+            '$textureInstructions = if ($hdIdentity)',
+            'HD textures are not included',
+            'includes the builder-supplied HD Lite texture tree'
+        )) {
+        if ($packageBuilderSource.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
+            throw "Project Installer START-HERE generation is missing its HD/no-HD contract: $required"
+        }
+    }
     if ($rootCommandSource.IndexOf('tools\public\Build-FearMorePublicProject.ps1" %*', [StringComparison]::Ordinal) -lt 0 -or
         $publicOrchestratorSource.IndexOf('Build-FearMoreProjectInstaller.ps1', [StringComparison]::Ordinal) -lt 0) {
         throw 'Root Project Installer command does not delegate through the public bootstrapper and focused installer orchestrator.'

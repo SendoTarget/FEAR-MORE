@@ -91,19 +91,32 @@ try {
         throw "Inno Setup compilation failed with exit code $LASTEXITCODE."
     }
 
-    $startHere = @'
-FEARMORE - START HERE
-
-1. Keep FearMore-Setup.exe and every FearMore-Setup-*.bin file together in this folder.
-2. Install and start your legal F.E.A.R. v1.08 copy once. Steam users: leave Steam running and signed in.
+    $textureInstructions = if ($hdIdentity) {
+@'
 3. Double-click FearMore-Setup.exe. Leave "Prepare HD Lite support now" selected.
 4. If EchoPatch asks to enable Large Address Aware support, choose Yes. Close the temporary game window after its menu appears.
 5. Start FearMore from the Start menu. Choose Options > Game > HD textures > Stable Lite, exit, and start FearMore again.
 
-This private setup is not Authenticode-signed, so Windows may show an Unknown publisher warning. SHA256SUMS.txt contains the hashes created and verified with this build.
-
-This is a private Project Installer build. It includes a locally supplied HD Lite texture tree whose public redistribution rights have not been established. Do not upload, publish, mirror, or attach this folder to a GitHub release.
+This locally built setup includes the builder-supplied HD Lite texture tree. Its public redistribution rights have not been established, so do not upload, publish, mirror, or attach this generated setup to a GitHub release.
 '@
+    }
+    else {
+@'
+3. Double-click FearMore-Setup.exe.
+4. Start FearMore from the Start menu and choose the Modern preset. HD textures are not included; the ordinary Modern game does not require them.
+
+This locally built setup contains SDK-derived modules and downloaded dependencies. It is for the legal owner's local installation and is not the public GitHub bootstrap asset.
+'@
+    }
+    $startHere = @"
+FEARMORE - START HERE
+
+1. Keep FearMore-Setup.exe and every FearMore-Setup-*.bin file together in this folder.
+2. Install and start your legal F.E.A.R. v1.08 copy once. Steam users: leave Steam running and signed in.
+$textureInstructions
+
+This setup is not Authenticode-signed, so Windows may show an Unknown publisher warning. SHA256SUMS.txt contains the hashes created and verified with this build.
+"@
     [IO.File]::WriteAllText(
         (Join-Path $transactionRoot 'START-HERE.txt'),
         $startHere.Trim() + "`r`n",

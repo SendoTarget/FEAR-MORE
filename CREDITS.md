@@ -10,6 +10,7 @@ For players, the optional texture path uses Rivarez's **[F.E.A.R. HD Textures v2
 
 - **F.E.A.R.** was created by **Monolith Productions**. FearMore is not affiliated with or endorsed by Monolith or the game's publishers/rightsholders.
 - A legally owned F.E.A.R. v1.08 installation supplies the executable, campaign archives, audio, video, models, textures, and other retail content. None of that content belongs to FearMore.
+- The original **F.E.A.R. Public Tools 1.08** installer may be present as `extras\fear_publictools_108.exe` in a legal game installation. Historical download listings are available from [AusGamers](https://www.ausgamers.com/files/download/25133/fear-sdk-v108) and [GameFront](https://www.gamefront.com/games/f-e-a-r/file/f-e-a-r-v1-08-sdk). The SDK remains a user-supplied local input and is not redistributed by FearMore.
 
 ## Modern playable stack
 
