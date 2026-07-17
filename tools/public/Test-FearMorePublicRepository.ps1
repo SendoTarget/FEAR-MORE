@@ -104,6 +104,17 @@ foreach ($relativePath in $requiredPaths) {
     }
 }
 
+$gitAttributes = Get-Content -LiteralPath (Join-Path $RepositoryRoot '.gitattributes') -Raw
+foreach ($requiredRule in @(
+        '/tools/echopatch/*.ini text eol=lf',
+        '/tools/runtime/config/*.conf text eol=lf',
+        '/tools/runtime/postprocess/** text eol=lf'
+    )) {
+    if ($gitAttributes.IndexOf($requiredRule, [StringComparison]::Ordinal) -lt 0) {
+        throw "Public repository is missing the hash-attested checkout rule: $requiredRule"
+    }
+}
+
 [pscustomobject]@{
     Status             = 'PASS'
     CandidateFileCount = $candidateFiles.Count

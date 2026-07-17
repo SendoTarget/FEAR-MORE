@@ -6,5 +6,11 @@
 /source-patches/*.patch -text
 /source-patches/*.patch whitespace=-blank-at-eol
 
+# These project-owned runtime profiles and post-process assets are validated by
+# exact SHA-256. Keep their checkout bytes stable on Windows with autocrlf.
+/tools/echopatch/*.ini text eol=lf
+/tools/runtime/config/*.conf text eol=lf
+/tools/runtime/postprocess/** text eol=lf
+
 # Double-click entry points use native Windows line endings.
 *.cmd text eol=crlf
