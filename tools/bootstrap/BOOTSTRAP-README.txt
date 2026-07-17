@@ -24,7 +24,7 @@ What happens
 ------------
 1. Missing Git, Visual Studio 2022 Build Tools, v141/CMake components, and Inno
    Setup 7 are offered through their exact public WinGet packages.
-2. FearMore v0.1.0 and its pinned EchoPatch submodule are cloned from:
+2. FearMore v0.1.1 and its pinned EchoPatch submodule are cloned from:
    https://github.com/SendoTarget/FEAR-MORE
 3. The SDK-relative source changes are reconstructed and compiled locally.
 4. The private local FearMore-Setup.exe opens when the build succeeds.

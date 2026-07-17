@@ -3,8 +3,8 @@ param(
     [string]$RepositoryRoot,
     [string]$OutputRoot,
     [string]$IsccPath,
-    [string]$Version = '0.1.0',
-    [string]$ReleaseTag = 'v0.1.0'
+    [string]$Version = '0.1.1',
+    [string]$ReleaseTag = 'v0.1.1'
 )
 
 Set-StrictMode -Version Latest
