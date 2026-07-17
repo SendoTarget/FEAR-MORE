@@ -74,7 +74,8 @@ function Assert-PackageCoherence(
     [string]$CandidateRoot,
     [string]$CandidatePackageRoot,
     [string]$CandidateManifestPath,
-    [string]$ExpectedPackageMode
+    [string]$ExpectedPackageMode,
+    [string]$ExpectedProfileSha256
 ) {
     Assert-ChildPath -Child $CandidatePackageRoot -Parent $CandidateRoot
     Assert-ChildPath -Child $CandidateManifestPath -Parent $CandidateRoot
@@ -110,6 +111,9 @@ function Assert-PackageCoherence(
     $candidateProfileHash = (Get-FileHash -LiteralPath (Join-Path $CandidatePackageRoot 'EchoPatch.ini') -Algorithm SHA256).Hash
     if ($candidateManifest.profileSha256 -ne $candidateProfileHash) {
         throw "Transactional EchoPatch candidate profile hash does not match its manifest."
+    }
+    if ($candidateProfileHash -cne $ExpectedProfileSha256) {
+        throw "Transactional EchoPatch candidate profile changed during compilation. Expected $ExpectedProfileSha256 but found $candidateProfileHash."
     }
 }
 
@@ -539,6 +543,8 @@ if ($RtxCameraReassertion) {
         [IO.File]::ReadAllText($rtxCameraReassertionProfileOverridePath),
         [Text.UTF8Encoding]::new($false))
 }
+$preparedProfileBytes = [IO.File]::ReadAllBytes($builtProfilePath)
+$preparedProfileSha256 = (Get-FileHash -LiteralPath $builtProfilePath -Algorithm SHA256).Hash
 
 $msbuild = Find-MSBuild
 $normalizedPath = $env:Path
@@ -582,6 +588,11 @@ if ($buildExitCode -ne 0) {
 if (@($buildOutput | Where-Object { "$_" -match '\bLNK4098\b' }).Count -ne 0) {
     throw "EchoPatch linked with a conflicting C runtime (LNK4098). See $buildLog"
 }
+
+# MSBuild treats the project INI as deployment content and can normalize its
+# line endings. Restore the exact prepared bytes so the promoted package keeps
+# the repository-attested profile identity on every checkout configuration.
+[IO.File]::WriteAllBytes($builtProfilePath, $preparedProfileBytes)
 
 $dllPath = Join-Path $sourceRoot "bin\Release\dinput8.dll"
 if (-not (Test-Path -LiteralPath $dllPath)) {
@@ -731,7 +742,8 @@ Assert-PackageCoherence `
     -CandidateRoot $transactionRoot `
     -CandidatePackageRoot $packageRoot `
     -CandidateManifestPath $manifestPath `
-    -ExpectedPackageMode $expectedPackageMode
+    -ExpectedPackageMode $expectedPackageMode `
+    -ExpectedProfileSha256 $preparedProfileSha256
 
 if ($TestFailBeforePromotion) {
     throw 'Forced EchoPatch transaction failure before promotion.'
