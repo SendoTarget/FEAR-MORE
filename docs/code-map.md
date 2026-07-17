@@ -5,6 +5,7 @@ This map records the current ownership boundaries. Update it when target ownersh
 ## Project-level files
 
 - `README.md`: project intent, asset boundary, current build status, and the root one-click launcher entry point.
+- `LICENSE.md`: authoritative component allowlist for the FearMore MIT grant, EchoPatch GPL boundary, separately licensed files, and inherited/third-party exclusions. New files are not licensed by directory proximity alone.
 - `Launch FearMore.cmd`: minimal Windows entry point for the default `Modern` D3D11-wrapper launcher preset; it forwards options to `tools/runtime/Start-FearMore.ps1`, retains explicit `-Preset Stable` rollback, and owns no staging or compatibility logic.
 - `Build FearMore Project Installer.cmd`: canonical minimal public-project entry point; it forwards options to `tools/public/Build-FearMorePublicProject.ps1` and owns no build or packaging logic. The former household-named command remains a forwarding compatibility alias.
 - `source-patches`, `source-overlay`, and `source-scaffold`: public module-source reconstruction inputs. They contain the minimal official-SDK-relative delta, new FearMore source files, and project-owned CMake scaffold; generated `FEAR/Dev/Source` remains ignored.

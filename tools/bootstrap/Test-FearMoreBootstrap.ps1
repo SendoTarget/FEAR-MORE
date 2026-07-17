@@ -35,7 +35,7 @@ if ($filesSection -match '(?i)\.(exe|dll|fxd|lib|zip|7z|rar|dds|arch00)\b|vendor
 
 $bootstrapText = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'Bootstrap-FearMoreProject.ps1') -Raw
 foreach ($needle in @(
-        "[string]`$ReleaseTag = 'v0.1.1'",
+        "[string]`$ReleaseTag = 'v0.1.2'",
         "[string]`$RepositoryUrl = 'https://github.com/SendoTarget/FEAR-MORE.git'",
         '--recurse-submodules',
         'fear_publictools_108.exe',

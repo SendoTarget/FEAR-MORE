@@ -5,7 +5,7 @@
   #error OutputRoot must select the ignored private installer output directory.
 #endif
 
-#define AppVersion "0.1.1"
+#define AppVersion "0.1.2"
 #define PublisherName "FearMore contributors"
 
 [Setup]

@@ -38,6 +38,8 @@ The locally built EchoPatch derivative is not itself a distribution-ready binary
 
 FearMore contributors own only their new, independently written work where applicable, including the runtime staging/validation tools, safe in-game remaster controls, modern-display corrections, frame-rate timing fixes, controller integration, Enhanced Gore rules, corpse-persistence budget, CAS adaptation/plumbing, tests, and documentation. That work does not grant rights to inherited F.E.A.R./LithTech source or third-party inputs.
 
+The exact reusable subset is now granted under the component-scoped MIT license in [LICENSE.md](LICENSE.md). `patches/echopatch/**` and `tools/echopatch/overlays/**` remain on the GPL-3.0 side, the SDK-relative game-module patch remains excluded pending upstream-rights review, and separately licensed files retain their embedded notices.
+
 EchoPatch was used as an implementation reference where documented, but its rebuilt-module hooks are disabled in the playable Modern lane. Controller input, gore/persistence behavior, AI timing, HUD/ultrawide changes, and in-game remaster settings are owned in the rebuilt source path rather than copied from EchoPatch's retail module patches.
 
 ## Evaluated but not shipped as a feature

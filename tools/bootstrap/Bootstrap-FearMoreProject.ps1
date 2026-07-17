@@ -4,7 +4,7 @@ param(
     [string]$SdkSourceRoot,
     [string]$LauncherRoot,
     [string]$OutputRoot,
-    [string]$ReleaseTag = 'v0.1.1',
+    [string]$ReleaseTag = 'v0.1.2',
     [string]$RepositoryUrl = 'https://github.com/SendoTarget/FEAR-MORE.git',
     [switch]$SkipPrerequisiteInstall,
     [switch]$NonInteractive,

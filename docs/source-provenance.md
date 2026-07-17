@@ -9,12 +9,12 @@
 
 ## Current uncertainty
 
-- There is no root `LICENSE` or `COPYING` file covering the complete inherited tree.
+- The root [`LICENSE.md`](../LICENSE.md) grants MIT permission only for an explicit allowlist of independently written FearMore components; it does not cover the complete inherited tree.
 - Many F.E.A.R. files contain all-rights-reserved notices.
 - The tree references or contains interfaces/binaries associated with proprietary middleware, including physics, video, networking, audio, and compression components.
 - The local Runtime, Tools, and Doc trees include binaries, game content, internal scripts, and legacy documentation whose redistribution status has not been established.
 
-Consequently, public access to FearMore should not be read as a grant to redistribute inherited source, game data, middleware, SDK files, or locally compiled binaries. The repository boundary reduces what is published; it does not resolve every upstream license question.
+Consequently, the component-scoped FearMore license and public repository access should not be read as a grant to redistribute inherited source, game data, middleware, SDK files, or locally compiled binaries. The repository boundary reduces what is published; it does not resolve every upstream license question.
 
 ## EchoPatch
 

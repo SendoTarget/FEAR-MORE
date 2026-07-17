@@ -7,6 +7,7 @@ FearMore is a public source-and-build-tooling effort to make F.E.A.R. v1.08 work
 - **Simplest install:** download and run **FearMore-Project-Installer-Bootstrap.exe** from [GitHub Releases](https://github.com/SendoTarget/FEAR-MORE/releases). It guides the legal owner through Public Tools setup and builds the playable installer locally.
 - [Quick start](QUICKSTART.md) — the shortest path from a legal F.E.A.R. v1.08 installation to the playable Modern or Stable preset.
 - [Credits and original download links](CREDITS.md) — EchoPatch, Rivarez's HD textures, dgVoodoo2, ReShade, SDL3, FidelityFX CAS, and their authors.
+- [License and reuse boundary](LICENSE.md) — the exact FearMore-authored components available under MIT, the EchoPatch GPL side, and excluded inherited or third-party material.
 - [Local launcher package](docs/playable-build.md) — what the assembled one-folder build contains and how it is verified.
 - [Project Installer](docs/project-installer.md) — the reproducible one-click builder, prerequisites, and public-repository boundary.
 
@@ -79,3 +80,7 @@ The runtime staging tool keeps stock retail plus pinned EchoPatch, rebuilt modul
 ## Game ownership and redistribution
 
 FearMore requires a legally acquired and installed copy of F.E.A.R. v1.08; it is not a standalone game and does not include the retail executable, campaign files, audio, video, or other assets. Public access to this repository is not a grant to redistribute F.E.A.R., the Public Tools SDK, third-party assets, proprietary middleware, or locally generated combined binaries. Component licenses and upstream terms continue to apply; see [CREDITS.md](CREDITS.md).
+
+## License and reuse
+
+FearMore's independently written tooling, documentation, build scaffold, and named new-source modules are available for reuse under the component-scoped MIT grant in [LICENSE.md](LICENSE.md). That grant is an explicit allowlist, not a blanket license for the repository. The SDK-relative source patch and inherited F.E.A.R./LithTech material remain outside it; EchoPatch patches and overlays remain GPL-3.0-only; CAS and every other third-party component retain their own notices. This lets developers reuse clearly project-owned work without changing any game-ownership, local-build, or redistribution restriction.

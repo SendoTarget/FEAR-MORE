@@ -86,6 +86,7 @@ foreach ($relativePath in $candidateFiles) {
 
 $requiredPaths = @(
     '.gitattributes',
+    'LICENSE.md',
     'README.md',
     'QUICKSTART.md',
     'CREDITS.md',
@@ -101,6 +102,22 @@ $requiredPaths = @(
 foreach ($relativePath in $requiredPaths) {
     if ($candidateFiles -notcontains $relativePath) {
         throw "Public repository candidate is missing required path: $relativePath"
+    }
+}
+
+$licenseText = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'LICENSE.md') -Raw
+$requiredLicenseFragments = @(
+    'This allowlist is deliberate.',
+    'source-patches/**',
+    'patches/echopatch/**',
+    'tools/echopatch/overlays/**',
+    'external/EchoPatch/LICENSE',
+    'tools/runtime/postprocess/Shaders/FearMoreCAS.fx',
+    'generated modules, runtime stages, installers, or combined binaries'
+)
+foreach ($requiredFragment in $requiredLicenseFragments) {
+    if ($licenseText.IndexOf($requiredFragment, [StringComparison]::Ordinal) -lt 0) {
+        throw "Public component-license boundary is missing required text: $requiredFragment"
     }
 }
 
