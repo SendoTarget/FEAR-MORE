@@ -19,10 +19,12 @@ if ([string]::IsNullOrWhiteSpace($SdkSourceRoot)) {
 $SdkSourceRoot = [IO.Path]::GetFullPath($SdkSourceRoot).TrimEnd('\')
 
 $initializer = Join-Path $PSScriptRoot 'Initialize-FearMoreModuleSource.ps1'
-$sourceResult = & $initializer -RepositoryRoot $RepositoryRoot -SdkSourceRoot $SdkSourceRoot -Refresh:$RefreshSource -Confirm:$false
-if ($sourceResult.Status -cne 'PASS') {
+$sourceResults = @(& $initializer -RepositoryRoot $RepositoryRoot -SdkSourceRoot $SdkSourceRoot -Refresh:$RefreshSource -Confirm:$false)
+$sourceMatches = @($sourceResults | Where-Object { $_ -is [psobject] -and $_.PSObject.Properties['Status'] -and $_.Status -ceq 'PASS' })
+if ($sourceMatches.Count -ne 1) {
     throw 'FearMore public source assembly did not return a passing result.'
 }
+$sourceResult = $sourceMatches[0]
 
 if ([string]::IsNullOrWhiteSpace($CMakePath)) {
     $cmakeCommand = Get-Command cmake -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -44,13 +46,13 @@ $sourceRoot = [string]$sourceResult.SourceRoot
 
 Push-Location $sourceRoot
 try {
-    & $CMakePath --preset fear-win32 "-DFEAR_LEGACY_SOURCE_ROOT=$SdkSourceRoot"
+    & $CMakePath --preset fear-win32 "-DFEAR_LEGACY_SOURCE_ROOT=$SdkSourceRoot" | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "FearMore CMake configuration failed with exit $LASTEXITCODE." }
     if ($BuildDebug) {
-        & $CMakePath --build --preset fear-win32-debug
+        & $CMakePath --build --preset fear-win32-debug | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "FearMore Debug build failed with exit $LASTEXITCODE." }
     }
-    & $CMakePath --build --preset fear-win32-release
+    & $CMakePath --build --preset fear-win32-release | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "FearMore Release build failed with exit $LASTEXITCODE." }
 }
 finally {

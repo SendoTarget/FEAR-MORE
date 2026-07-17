@@ -38,9 +38,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $SdkSourceRoot 'Game') -PathType Con
 }
 
 Write-Host 'Preparing validated third-party dependencies...'
-$dependencyResult = & (Join-Path $PSScriptRoot 'Get-FearMorePublicDependencies.ps1') `
-    -RepositoryRoot $RepositoryRoot -Confirm:$false
-if ($dependencyResult.Status -cne 'PASS') { throw 'Dependency preparation did not pass.' }
+$dependencyResults = @(& (Join-Path $PSScriptRoot 'Get-FearMorePublicDependencies.ps1') `
+    -RepositoryRoot $RepositoryRoot -Confirm:$false)
+$dependencyMatches = @($dependencyResults | Where-Object { $_ -is [psobject] -and $_.PSObject.Properties['Status'] -and $_.Status -ceq 'PASS' })
+if ($dependencyMatches.Count -ne 1) { throw 'Dependency preparation did not return exactly one passing result.' }
+$dependencyResult = $dependencyMatches[0]
 
 Write-Host 'Reconstructing and building FearMore game modules...'
 $moduleParameters = @{
@@ -49,8 +51,10 @@ $moduleParameters = @{
     RefreshSource  = $RefreshSource
 }
 if (-not [string]::IsNullOrWhiteSpace($CMakePath)) { $moduleParameters.CMakePath = $CMakePath }
-$moduleResult = & (Join-Path $PSScriptRoot 'Build-FearMoreModules.ps1') @moduleParameters
-if ($moduleResult.Status -cne 'PASS') { throw 'FearMore module build did not pass.' }
+$moduleResults = @(& (Join-Path $PSScriptRoot 'Build-FearMoreModules.ps1') @moduleParameters)
+$moduleMatches = @($moduleResults | Where-Object { $_ -is [psobject] -and $_.PSObject.Properties['Status'] -and $_.Status -ceq 'PASS' })
+if ($moduleMatches.Count -ne 1) { throw 'FearMore module build did not return exactly one passing result.' }
+$moduleResult = $moduleMatches[0]
 
 Write-Host 'Building the pinned engine-only EchoPatch derivative...'
 $minHookArchive = Join-Path $RepositoryRoot 'vendor-local\echopatch-deps\minhook-c3fcafdc10146beb5919319d0683e44e3c30d537.zip'
@@ -75,8 +79,10 @@ else {
 if ($WithoutHdLite) { $installerParameters.WithoutHdLite = $true }
 
 Write-Host 'Assembling and compiling the FearMore Project Installer...'
-$installerResult = & (Join-Path $RepositoryRoot 'tools\installer\Build-FearMoreProjectInstaller.ps1') @installerParameters
-if ($installerResult.Status -cne 'PASS') { throw 'FearMore Project Installer build did not pass.' }
+$installerResults = @(& (Join-Path $RepositoryRoot 'tools\installer\Build-FearMoreProjectInstaller.ps1') @installerParameters)
+$installerMatches = @($installerResults | Where-Object { $_ -is [psobject] -and $_.PSObject.Properties['Status'] -and $_.Status -ceq 'PASS' })
+if ($installerMatches.Count -ne 1) { throw 'FearMore Project Installer build did not return exactly one passing result.' }
+$installerResult = $installerMatches[0]
 
 [pscustomobject]@{
     Status          = 'PASS'
