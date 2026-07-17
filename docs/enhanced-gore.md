@@ -53,17 +53,21 @@ The postmortem path stops adding locations once the corpse already has three det
 EnhancedGoreMaxSeversPerBody 3
 ```
 
-## Bounded corpse persistence
+## Bounded level-session world persistence
 
-FearMore now exposes a separate **Corpse persistence** toggle on the Gameplay
-screen. This is a source-owned corpse budget, not EchoPatch persistent world
-state. It does not retain decals, shell casings, debris, detached-client-part
-transforms, or arbitrary level changes.
+FearMore exposes a separate **World persistence** toggle on the Gameplay
+screen. It uses EchoPatch's persistent-effect families as a reference, but the
+implementation is source-owned and bounded rather than a blanket infinite
+lifetime patch. It retains eligible effects only for the currently loaded
+level; it does not serialize shell, glass, debris, or arbitrary world transforms
+into saves.
 
 Off is the compatibility path: the rebuilt client forwards F.E.A.R.'s original
 performance-derived `BodyCapRadius`, `BodyCapRadiusCount`, and
 `BodyCapTotalCount` values without changing them. On substitutes a bounded
-single-player budget through the same existing performance-settings message:
+single-player body budget through the same existing performance-settings
+message. The legacy setting name remains unchanged so existing profiles retain
+their choice:
 
 ```text
 FearMoreCorpsePersistence 1
@@ -78,11 +82,30 @@ at most 48 across the level. Bodies already selected by the radius pass are
 excluded from the total pass's removal count, so an overlap cannot under-evict.
 Permanent bodies and bodies already fading retain their stock exclusions.
 
+The rebuilt client additionally applies these hard ceilings:
+
+| Family | Level-session ceiling | Existing lower limits preserved |
+| --- | ---: | --- |
+| ClientFX world/blood/bullet decals | 512 active keys | Mark regional and bullet-hole performance caps |
+| Selected model/sprite debris | 256 active keys | Authored detail/gore filtering; `HRocket_Debris` remains excluded |
+| Model decals | 256 | Performance total, per-model, and per-second limits |
+| Shell casings | 200 | Existing `CSpecialFXList` oldest-item replacement |
+| Shattered glass/tile/poly groups | 16 groups | Whole groups are retired together |
+
+At a ceiling, ClientFX keys, shell casings, and whole shatter groups retire in
+age order before a replacement is kept. Model decals recycle an existing
+bounded slot while retaining the engine's stricter regional, per-model, and
+per-second limits. EchoPatch-informed sprite families include stone bullet
+holes, flesh splat 6, and the electronic, wood, mug, and vase chunk families;
+all ClientFX decals are eligible. Ordinary unclassified effects keep their
+authored lifetimes.
+
 A genuinely new Modern profile seeds this option On. Other new presets seed it
 Off. Existing `settings.cfg` files are never rewritten by the launcher: an
 explicit saved `0` or `1` wins, while an older existing profile with no field
 uses conservative Off until the player changes and saves the in-game option.
-Changes reach the local server on the next world load. The engine-only
+The body-budget selection reaches the local server on the next world load, and
+the same saved choice governs the client-only budgets. The engine-only
 EchoPatch lane continues to use `PatchGameModules=0` and
 `EnablePersistentWorldState=0`.
 
@@ -132,7 +155,7 @@ Test on a user-owned F.E.A.R. v1.08 installation with rebuilt modules and withou
 7. Disable gore in single-player and confirm no postmortem model mutation occurs.
 8. Save before and after a detach, reload both saves, and confirm the after-detach save reconstructs exactly one detached client object without the original linear sever impulse, retains the replacement corpse model/hidden piece, and still rejects another hit at that location.
 9. Exercise rapid multi-projectile fire and several nearby corpses while watching frame time and the existing global cap.
-10. With **Corpse persistence** Off, confirm the original performance-derived body caps are unchanged. Enable it, load a new world, exceed both the local-radius and level-wide budgets, and confirm distinct farthest bodies fade until no more than 24/48 eligible corpses remain; permanent bodies must remain exempt.
+10. With **World persistence** Off, confirm original effect lifetimes and performance-derived body caps are unchanged. Enable it, load a new world, exceed the 24/48 body, 512 decal, 256 selected-debris, 256 model-decal, 200 casing, and 16 shatter-group ceilings, and confirm bounded client effects recycle while distinct farthest bodies fade; permanent bodies must remain exempt.
 11. Verify positional, collision, explosion, rejected/filtered, crouched, knocked-down, and player-corpse damage cannot trigger the postmortem path.
 12. Confirm the rebuilt and stock lanes write to different profile/save directories and that neither lane sees the other's saves.
 13. Join an existing multiplayer match after a stock sever and confirm the joining client receives no historical `CFX_SEVER` replay and direct `EnhancedGore 1` cannot enable postmortem severing on the server.

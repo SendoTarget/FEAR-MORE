@@ -70,7 +70,7 @@ Acceptance:
 
 ## M2 - Enhanced Gore foundation
 
-Status on 2026-07-16: the first opt-in postmortem sever slice persists location damage and detached-location state while reusing the stock sever pipeline, and a representative rebuilt combat pass accepted sever presentation plus quick-save/reload restoration. A separate source-owned corpse-persistence toggle provides bounded 4096/24/48 radius/level limits, while Off preserves the inherited performance-derived caps. Dense live corpse-budget pressure, the broader gore/save matrix, and the immutable exact-zone event planned below remain open.
+Status on 2026-07-17: the first opt-in postmortem sever slice persists location damage and detached-location state while reusing the stock sever pipeline, and a representative rebuilt combat pass accepted sever presentation plus quick-save/reload restoration. The separate source-owned World persistence toggle keeps its legacy profile field, preserves stock effect lifetimes/body caps when Off, and when On adds bounded 4096/24/48 body limits plus 512 ClientFX decals, 256 selected debris keys, 256 model decals, 200 casings, and 16 shatter groups for the loaded level. Existing lower limits still win and EchoPatch game/world hooks remain disabled. Debug/Release compilation, static invariants, and a prepared 3440 x 1440 D3D11/CAS startup smoke pass; dense live effect pressure and the broader gore/save matrix remain open.
 
 Extend existing damage, sever, decal, ClientFX, attachment, ragdoll, and persistence primitives instead of creating a parallel damage system.
 
@@ -82,7 +82,7 @@ Work:
 - Version sever messages and replicate the explicit piece identity.
 - Persist per-zone accumulated damage, wound tier, detached state, and damage-type rules.
 - Allow bounded postmortem wounds/dismemberment without changing health, kill credit, score, triggers, or invoking death twice.
-- Continue replacing unlimited persistence with explicit distance-aware budgets. The corpse budget is implemented; model-decal, gib, shell, and debris budgets remain open.
+- Profile and tune the bounded World persistence ceilings under dense campaign combat; detached-client-part transforms and arbitrary save serialization remain outside this slice.
 
 The first vertical slice is one supported humanoid family, one wound-zone transition, one postmortem sever result, save/load, and stock-versus-enhanced comparison. Broader content follows only after that path is correct.
 

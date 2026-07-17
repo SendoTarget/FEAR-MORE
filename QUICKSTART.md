@@ -33,7 +33,7 @@ If automatic detection fails, open PowerShell in the installed FearMore folder a
 2. Start with **Renderer quality > Native** and **Effects target > High**. Try **Max 2x** only when the GPU has enough headroom.
 3. Set **Post-processing > CAS** for conservative sharpening, or keep **Off** as the exact fallback. Renderer and post-processing changes apply after restart.
 4. Under **Options > Performance**, choose **Apply remaster quality**.
-5. Under **Options > Game**, leave retail **Gore** enabled, then choose **Enhanced gore** and **Corpse persistence**. These apply on the next world load.
+5. Under **Options > Game**, leave retail **Gore** enabled, then choose **Enhanced gore** and **World persistence**. These apply on the next world load.
 6. Controller settings are under **Options > Controls > Joystick**. Keyboard and mouse remain available.
 
 Modern uses a 144 FPS cap. FearMore preserves F.E.A.R.'s original GOAP/A* combat behavior and corrects its scheduler timing for modern frame rates.

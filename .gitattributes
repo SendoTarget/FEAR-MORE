@@ -4,6 +4,7 @@
 # The SDK-relative patch is a byte-attested legacy-source artifact. Do not
 # rewrite it through Windows autocrlf; its SHA-256 is a public build invariant.
 /source-patches/*.patch -text
+/source-patches/*.patch whitespace=-blank-at-eol
 
 # Double-click entry points use native Windows line endings.
 *.cmd text eol=crlf

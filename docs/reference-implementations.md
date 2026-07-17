@@ -41,7 +41,7 @@ AutoResolution = 1
 DisableLetterbox = 0
 ```
 
-`SSAAScale = 1.0` is the compatibility baseline. At 3440 x 1440, profile 1.25 and 1.5 before treating 2.0's 6880 x 2880 internal target as an optional quality ceiling; EchoPatch documents no device/VRAM guard for unsupported internal sizes. EchoPatch's unlimited persistence remains useful only as a retail visual reference. The rebuilt source now owns the first explicit budget: optional corpse persistence keeps the inherited Off payload intact and uses bounded 4096/24/48 radius/level limits when On. Separate decal, gib, shell, and debris budgets remain future work.
+`SSAAScale = 1.0` is the compatibility baseline. At 3440 x 1440, profile 1.25 and 1.5 before treating 2.0's 6880 x 2880 internal target as an optional quality ceiling; EchoPatch documents no device/VRAM guard for unsupported internal sizes. EchoPatch's unlimited persistence remains useful only as a retail visual reference. The rebuilt source owns bounded level-session bodies, eligible ClientFX decals/debris, model decals, shell casings, and shatter groups; arbitrary world-state serialization and detached-part transform persistence remain out of scope.
 
 This full profile is not applied to rebuilt game modules. EchoPatch hooks exact retail client, server, and ClientFX machine-code signatures. The optional Rebuilt runtime mode consumes only the pinned local derivative that proves `PatchGameModules=0`, keeps module-dependent settings disabled, and records exact binary/config ownership. That permits a bounded engine-hook experiment; it is not evidence that every retained hook is runtime-compatible, and it does not replace independently authored source fixes.
 

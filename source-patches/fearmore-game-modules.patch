@@ -1288,7 +1288,7 @@ index 82be1e8bd29b5f6aee656faecd1d93c48c476256..7b601e6f7dead2e3f1fce6e5aad7ad22
 +	tcs.szHelpID = kCorpsePersistenceHelpId;
 +	tcs.pbValue = &m_bCorpsePersistence;
 +	tcs.nHeaderWidth = kGap;
-+	CLTGUIToggle *pCorpsePersistence = AddToggle(L"Corpse persistence", tcs);
++	CLTGUIToggle *pCorpsePersistence = AddToggle(L"World persistence", tcs);
 +	pCorpsePersistence->SetOnString(szYes);
 +	pCorpsePersistence->SetOffString(szNo);
 +
@@ -1365,8 +1365,8 @@ index 82be1e8bd29b5f6aee656faecd1d93c48c476256..7b601e6f7dead2e3f1fce6e5aad7ad22
 +	if (LTStrIEquals(szHelpId, kCorpsePersistenceHelpId))
 +	{
 +		LTStrCpy(buffer,
-+			L"Single player only. Keeps up to 48 non-permanent corpses level-wide and 24 within 4096 units; "
-+			L"farther bodies fade first. Off uses F.E.A.R.'s original limits. This does not persist decals, debris, or world state. "
++			L"Single player only. Keeps bounded bodies, blood and bullet decals, shell casings, shattered surfaces, and selected debris "
++			L"for the loaded level. Old effects are recycled at their limits; Off uses F.E.A.R.'s original lifetimes and body limits. "
 +			L"Changes apply on the next world load.",
 +			bufLen);
 +		return;
@@ -2549,3 +2549,348 @@ index 11c3194de6052cabcae20f0f041cd7541027facf..8e8ea717700c511c0560ccf247011d91
 +++ modified/Shared/VersionMgr.h
 @@ -67,0 +68 @@ class CVersionMgr
 +		static const TSaveVersion	kSaveVersion__FearMoreEnhancedGore;
+diff --git base/ClientFxDLL/BaseFx.cpp modified/ClientFxDLL/BaseFx.cpp
+index 9827096..cd353c5 100644
+--- base/ClientFxDLL/BaseFx.cpp
++++ modified/ClientFxDLL/BaseFx.cpp
+@@ -310,0 +311 @@ CBaseFX::CBaseFX( FXType nType) :
++	m_eFearMorePersistenceClass(eFearMorePersistence_None),
+diff --git base/ClientShellDLL/ClientFXInstance.cpp modified/ClientShellDLL/ClientFXInstance.cpp
+index 823064b..e759188 100644
+--- base/ClientShellDLL/ClientFXInstance.cpp
++++ modified/ClientShellDLL/ClientFXInstance.cpp
+@@ -3,0 +4 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -60,0 +62 @@ CClientFXInstance::CClientFXInstance()
++	m_bFearMorePastDuration( false ),
+@@ -275,0 +278,34 @@ bool CClientFXInstance::IsDone()
++bool CClientFXInstance::HasFearMorePersistentFX()
++{
++	if(!FearMoreCorpsePersistence::IsEnabled())
++		return false;
++
++	LTListIter<CBaseFX*> itActiveFX = m_ActiveFXList.Begin();
++	while(itActiveFX != m_ActiveFXList.End())
++	{
++		CBaseFX* pFX = *itActiveFX;
++		itActiveFX++;
++
++		if(pFX->IsActive() && !pFX->IsShuttingDown() &&
++			(pFX->GetFearMorePersistenceClass() != CBaseFX::eFearMorePersistence_None))
++		{
++			return true;
++		}
++	}
++
++	return false;
++}
++
++void CClientFXInstance::RemoveFearMorePersistentFX()
++{
++	LTListIter<CBaseFX*> itActiveFX = m_ActiveFXList.Begin();
++	while(itActiveFX != m_ActiveFXList.End())
++	{
++		CBaseFX* pFX = *itActiveFX;
++		itActiveFX++;
++
++		if(pFX->GetFearMorePersistenceClass() != CBaseFX::eFearMorePersistence_None)
++			DeleteFX(pFX);
++	}
++}
++
+@@ -509 +545,4 @@ void CClientFXInstance::UpdateInterval(float fStartInterval, float fEndInterval)
+-				bool bCompleteKey	= ((pFX->GetEndTime() <= fTimeBlockEnd) && (pFX->GetEndTime() >= fCurrStart));
++				bool bFearMorePersistent = FearMoreCorpsePersistence::IsEnabled() &&
++					(pFX->GetFearMorePersistenceClass() != CBaseFX::eFearMorePersistence_None);
++				bool bCompleteKey	= !bFearMorePersistent &&
++					((pFX->GetEndTime() <= fTimeBlockEnd) && (pFX->GetEndTime() >= fCurrStart));
+diff --git base/ClientShellDLL/ClientFXInstance.h modified/ClientShellDLL/ClientFXInstance.h
+index af31467..fd408c2 100644
+--- base/ClientShellDLL/ClientFXInstance.h
++++ modified/ClientShellDLL/ClientFXInstance.h
+@@ -148,0 +149,6 @@ public:
++	//Returns whether this non-looping instance has an active effect that may
++	//remain after its authored timeline.  The classification is assigned by
++	//CClientFXMgr and remains bounded there.
++	bool	HasFearMorePersistentFX();
++	void	RemoveFearMorePersistentFX();
++
+@@ -185,0 +192 @@ public:
++	bool				m_bFearMorePastDuration;
+diff --git base/ClientShellDLL/ClientFXMgr.cpp modified/ClientShellDLL/ClientFXMgr.cpp
+index 18697c5..b431d62 100644
+--- base/ClientShellDLL/ClientFXMgr.cpp
++++ modified/ClientShellDLL/ClientFXMgr.cpp
+@@ -26,0 +27 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -31,0 +33,44 @@
++namespace
++{
++	bool FearMoreEffectNameStartsWith(const char* pszName, const char* pszPrefix)
++	{
++		if(!pszName || !pszPrefix)
++			return false;
++
++		return (_strnicmp(pszName, pszPrefix, strlen(pszPrefix)) == 0);
++	}
++
++	CBaseFX::EFearMorePersistenceClass GetFearMorePersistenceClass(const char* pszGroupName, CBaseFX::FXType eFXType)
++	{
++		if(eFXType == CBaseFX::eDecalFX)
++			return CBaseFX::eFearMorePersistence_Decal;
++
++		if(eFXType == CBaseFX::eLTBModelFX)
++		{
++			if(FearMoreEffectNameStartsWith(pszGroupName, "HRocket_Debris"))
++				return CBaseFX::eFearMorePersistence_None;
++
++			return CBaseFX::eFearMorePersistence_Debris;
++		}
++
++		if(eFXType != CBaseFX::eSpriteFX)
++			return CBaseFX::eFearMorePersistence_None;
++
++		if(FearMoreEffectNameStartsWith(pszGroupName, "Stone_bullethole") ||
++			FearMoreEffectNameStartsWith(pszGroupName, "Flesh_splat6"))
++		{
++			return CBaseFX::eFearMorePersistence_Decal;
++		}
++
++		if(FearMoreEffectNameStartsWith(pszGroupName, "Debris_Electronic_Chunk") ||
++			FearMoreEffectNameStartsWith(pszGroupName, "Debris_Wood_Chunk") ||
++			FearMoreEffectNameStartsWith(pszGroupName, "Debris_Mug_Chunk") ||
++			FearMoreEffectNameStartsWith(pszGroupName, "Debris_Vase1_Chunk"))
++		{
++			return CBaseFX::eFearMorePersistence_Debris;
++		}
++
++		return CBaseFX::eFearMorePersistence_None;
++	}
++}
++
+@@ -311,0 +357,20 @@ bool CClientFXMgr::UpdateAllActiveFX()
++		if(pInst->m_bFearMorePastDuration)
++		{
++			if(!FearMoreCorpsePersistence::IsEnabled())
++			{
++				pInst->RemoveFearMorePersistentFX();
++				pInst->m_bFearMorePastDuration = false;
++			}
++			else
++			{
++				//Update beyond the authored duration so retained keys and any
++				//smooth shutdown continue without restarting inactive group keys.
++				pInst->UpdateInterval(pInst->m_fDuration, pInst->m_fDuration + fFrameTime);
++			}
++
++			if(pInst->m_ActiveFXList.IsEmpty())
++				DeleteClientFXInstance(pInst);
++
++			continue;
++		}
++
+@@ -338,0 +404,12 @@ bool CClientFXMgr::UpdateAllActiveFX()
++				if(!pInst->m_bLoop && pInst->HasFearMorePersistentFX())
++				{
++					float fOverflow = fEndInterval - pInst->m_fDuration;
++					pInst->m_bFearMorePastDuration = true;
++					if(fOverflow > 0.0f)
++						pInst->UpdateInterval(pInst->m_fDuration, pInst->m_fDuration + fOverflow);
++
++					fEndInterval = pInst->m_fDuration;
++					bLastSegment = true;
++					continue;
++				}
++
+@@ -354,0 +432,8 @@ bool CClientFXMgr::UpdateAllActiveFX()
++	if(FearMoreCorpsePersistence::IsEnabled())
++	{
++		EnforceFearMorePersistenceBudget(CBaseFX::eFearMorePersistence_Decal,
++			FearMoreCorpsePersistence::kPersistentDecalBudget);
++		EnforceFearMorePersistenceBudget(CBaseFX::eFearMorePersistence_Debris,
++			FearMoreCorpsePersistence::kPersistentDebrisBudget);
++	}
++
+@@ -357 +442,53 @@ bool CClientFXMgr::UpdateAllActiveFX()
+-}	
++}
++
++void CClientFXMgr::EnforceFearMorePersistenceBudget(CBaseFX::EFearMorePersistenceClass eClass, uint32 nBudget)
++{
++	uint32 nCount = 0;
++	LTListIter<CClientFXInstance*> itInstance = m_FXInstanceList.Begin();
++	while(itInstance != m_FXInstanceList.End())
++	{
++		CClientFXInstance* pInstance = *itInstance;
++		itInstance++;
++
++		LTListIter<CBaseFX*> itFX = pInstance->m_ActiveFXList.Begin();
++		while(itFX != pInstance->m_ActiveFXList.End())
++		{
++			CBaseFX* pFX = *itFX;
++			itFX++;
++			if(pFX->IsActive() && !pFX->IsShuttingDown() &&
++				(pFX->GetFearMorePersistenceClass() == eClass))
++			{
++				nCount++;
++			}
++		}
++	}
++
++	while(nCount > nBudget)
++	{
++		bool bRemoved = false;
++		itInstance = m_FXInstanceList.Begin();
++		while((itInstance != m_FXInstanceList.End()) && !bRemoved)
++		{
++			CClientFXInstance* pInstance = *itInstance;
++			itInstance++;
++
++			LTListIter<CBaseFX*> itFX = pInstance->m_ActiveFXList.Begin();
++			while(itFX != pInstance->m_ActiveFXList.End())
++			{
++				CBaseFX* pFX = *itFX;
++				itFX++;
++				if(pFX->IsActive() && !pFX->IsShuttingDown() &&
++					(pFX->GetFearMorePersistenceClass() == eClass))
++				{
++					pInstance->DeleteFX(pFX);
++					bRemoved = true;
++					nCount--;
++					break;
++				}
++			}
++		}
++
++		if(!bRemoved)
++			break;
++	}
++}
+@@ -632,0 +770 @@ bool CClientFXMgr::StartClientFX(CClientFXInstance* pInstance, const CLIENTFX_CR
++	pInstance->m_bFearMorePastDuration = false;
+@@ -702,0 +841 @@ bool CClientFXMgr::CreateFXKey(const CLIENTFX_CREATESTRUCT &fxInit, CClientFXIns
++		pNewFX->SetFearMorePersistenceClass(GetFearMorePersistenceClass(fxInit.m_sName, pNewFX->GetFXType()));
+@@ -1011 +1150 @@ bool CClientFXMgr::RestartEffects()
+-#endif
+\ No newline at end of file
++#endif
+diff --git base/ClientShellDLL/ClientFXMgr.h modified/ClientShellDLL/ClientFXMgr.h
+index e5b8a81..3e944cd 100644
+--- base/ClientShellDLL/ClientFXMgr.h
++++ modified/ClientShellDLL/ClientFXMgr.h
+@@ -108,0 +109,4 @@ private :
++	//Keeps source-owned persistent ClientFX bounded by evicting the oldest
++	//active classified key after normal updates have completed.
++	void							EnforceFearMorePersistenceBudget(CBaseFX::EFearMorePersistenceClass eClass, uint32 nBudget);
++
+diff --git base/ClientShellDLL/ModelDecalMgr.cpp modified/ClientShellDLL/ModelDecalMgr.cpp
+index 867c789..3377cfa 100644
+--- base/ClientShellDLL/ModelDecalMgr.cpp
++++ modified/ClientShellDLL/ModelDecalMgr.cpp
+@@ -14,0 +15 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -312,3 +313,17 @@ void CGameModelDecalMgr::AddDecal(HOBJECT hObject, uint32 nDecalType, const LTMa
+-	// Total
+-	if ((m_fMaxDecals >= 0.0f) && (m_aDecals.size() >= (uint32)m_fMaxDecals))
+-		return;	
++	// Total.  The existing performance limit remains authoritative when it is
++	// lower; persistence adds a hard ceiling and recycles one existing slot.
++	if(FearMoreCorpsePersistence::IsEnabled())
++	{
++		uint32 nBudget = FearMoreCorpsePersistence::kPersistentModelDecalBudget;
++		if((m_fMaxDecals >= 0.0f) && ((uint32)m_fMaxDecals < nBudget))
++			nBudget = (uint32)m_fMaxDecals;
++		if(nBudget == 0u)
++			return;
++
++		if(!m_aDecals.empty() && (m_aDecals.size() >= nBudget))
++			RemoveDecal(0);
++	}
++	else if((m_fMaxDecals >= 0.0f) && (m_aDecals.size() >= (uint32)m_fMaxDecals))
++	{
++		return;
++	}
+@@ -353 +368 @@ void CGameModelDecalMgr::AddDecal(HOBJECT hObject, uint32 nDecalType, const LTMa
+-	if (sDecalType.m_fFadeDelay >= 0.0f)
++	if (!FearMoreCorpsePersistence::IsEnabled() && (sDecalType.m_fFadeDelay >= 0.0f))
+diff --git base/ClientShellDLL/SFXMgr.cpp modified/ClientShellDLL/SFXMgr.cpp
+index 81ef3c7..f969527 100644
+--- base/ClientShellDLL/SFXMgr.cpp
++++ modified/ClientShellDLL/SFXMgr.cpp
+@@ -63,0 +64 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -79 +80 @@ static unsigned int s_nDynArrayMaxNums[DYN_ARRAY_SIZE] =
+-	200,	// Shell casings
++	FearMoreCorpsePersistence::kPersistentShellCasingBudget,	// Shell casings
+@@ -1731 +1731,0 @@ CTurretFX* CSFXMgr::GetTurretFX( HOBJECT hObject )
+-
+diff --git base/ClientShellDLL/ShatterEffect.cpp modified/ClientShellDLL/ShatterEffect.cpp
+index bd3c3b7..a7fc73e 100644
+--- base/ClientShellDLL/ShatterEffect.cpp
++++ modified/ClientShellDLL/ShatterEffect.cpp
+@@ -6,0 +7 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -1297,0 +1299 @@ bool CShatterEffect::Update(float fElapsedS)
++	bool bPersistent = FearMoreCorpsePersistence::IsEnabled();
+@@ -1299 +1301 @@ bool CShatterEffect::Update(float fElapsedS)
+-	if(m_fTotalElapsed >= fMaxLifetime)
++	if(!bPersistent && (m_fTotalElapsed >= fMaxLifetime))
+@@ -1307 +1309 @@ bool CShatterEffect::Update(float fElapsedS)
+-	if(m_fTotalElapsed > fStartFading)
++	if(!bPersistent && (m_fTotalElapsed > fStartFading))
+@@ -1577 +1578,0 @@ void CShatterEffect::RenderShatterEffect(ILTCustomRenderCallback* pInterface)
+-
+diff --git base/ClientShellDLL/ShatterEffectMgr.cpp modified/ClientShellDLL/ShatterEffectMgr.cpp
+index f1a08e0..f9fa6aa 100644
+--- base/ClientShellDLL/ShatterEffectMgr.cpp
++++ modified/ClientShellDLL/ShatterEffectMgr.cpp
+@@ -3,0 +4 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -68,0 +70,7 @@ bool CShatterEffectMgr::CreateShatterEffect(uint32 nShatterDataID, const LTRigid
++	if(FearMoreCorpsePersistence::IsEnabled() &&
++		(m_ShatterList.size() >= FearMoreCorpsePersistence::kPersistentShatterGroupBudget))
++	{
++		debug_delete(m_ShatterList.front());
++		m_ShatterList.erase(m_ShatterList.begin());
++	}
++
+@@ -107 +115 @@ void CShatterEffectMgr::FreeShatterEffects()
+-}
+\ No newline at end of file
++}
+diff --git base/ClientShellDLL/ShellCasingFX.cpp modified/ClientShellDLL/ShellCasingFX.cpp
+index 4023019..13ae6e2 100644
+--- base/ClientShellDLL/ShellCasingFX.cpp
++++ modified/ClientShellDLL/ShellCasingFX.cpp
+@@ -25,0 +26 @@
++#include "FearMoreCorpsePersistence.h"
+@@ -339,3 +340,6 @@ bool CShellCasingFX::Update()
+-	m_fDieTime -= fFrameTime;
+-	
+-    if (m_fDieTime <= 0.0f) return false;
++	if(!FearMoreCorpsePersistence::IsEnabled())
++	{
++		m_fDieTime -= fFrameTime;
++		if(m_fDieTime <= 0.0f)
++			return false;
++	}
+diff --git base/Shared/BaseFx.h modified/Shared/BaseFx.h
+index 7120e38..feffa3e 100644
+--- base/Shared/BaseFx.h
++++ modified/Shared/BaseFx.h
+@@ -328,0 +329,6 @@ public :
++	enum EFearMorePersistenceClass
++	{
++		eFearMorePersistence_None,
++		eFearMorePersistence_Decal,
++		eFearMorePersistence_Debris,
++	};
+@@ -397,0 +404,2 @@ public :
++	void					SetFearMorePersistenceClass(EFearMorePersistenceClass eClass) { m_eFearMorePersistenceClass = eClass; }
++	EFearMorePersistenceClass GetFearMorePersistenceClass() const { return m_eFearMorePersistenceClass; }
+@@ -491,0 +500,5 @@ private:
++	//Optional, source-owned level-session persistence classification.  The
++	//client effect manager assigns this from the containing effect group; the
++	//default leaves the authored lifetime unchanged.
++	EFearMorePersistenceClass m_eFearMorePersistenceClass;
++

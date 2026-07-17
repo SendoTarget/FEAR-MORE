@@ -150,8 +150,8 @@ try {
     $patchTargets = @(Get-Content -LiteralPath $patchPath | ForEach-Object {
             if ($_ -match '^--- base/(.+)$') { $Matches[1].Replace('/', '\') }
         } | Where-Object { $_ } | Sort-Object -Unique)
-    if ($patchTargets.Count -ne 53) {
-        throw "FearMore source delta should modify 53 SDK files, found $($patchTargets.Count)."
+    if ($patchTargets.Count -ne 64) {
+        throw "FearMore source delta should modify 64 SDK files, found $($patchTargets.Count)."
     }
     foreach ($patchTarget in $patchTargets) {
         $targetPath = [IO.Path]::GetFullPath((Join-Path $transactionGameRoot $patchTarget))

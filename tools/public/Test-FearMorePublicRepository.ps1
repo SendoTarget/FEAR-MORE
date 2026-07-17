@@ -36,19 +36,19 @@ foreach ($relativePath in $candidateFiles) {
 }
 
 $patchPath = Join-Path $RepositoryRoot 'source-patches\fearmore-game-modules.patch'
-$expectedPatchSha256 = '3E804CC2B26F8536F93F583C62DED47F9BA92EBFD41B26EF4A82F92AEB5DC7D1'
+$expectedPatchSha256 = 'B3E130DDB0DF8D398576E694E6C68A508892EB19A4E6DAF91E4B30E732CA81C5'
 $actualPatchSha256 = (Get-FileHash -LiteralPath $patchPath -Algorithm SHA256).Hash
 if ($actualPatchSha256 -cne $expectedPatchSha256) {
     throw "Public source patch identity changed. Expected $expectedPatchSha256 but found $actualPatchSha256."
 }
 $patchText = [Text.Encoding]::GetEncoding(28591).GetString([IO.File]::ReadAllBytes($patchPath))
 $patchTargetCount = @([regex]::Matches($patchText, '(?m)^diff --git ')).Count
-if ($patchTargetCount -ne 53) {
-    throw "Public source patch must contain exactly 53 modified SDK paths; found $patchTargetCount."
+if ($patchTargetCount -ne 64) {
+    throw "Public source patch must contain exactly 64 modified SDK paths; found $patchTargetCount."
 }
 $overlayFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'source-overlay\Game') -File -Recurse)
-if ($overlayFiles.Count -ne 23) {
-    throw "Public source overlay must contain exactly 23 new project files; found $($overlayFiles.Count)."
+if ($overlayFiles.Count -ne 24) {
+    throw "Public source overlay must contain exactly 24 new project files; found $($overlayFiles.Count)."
 }
 $scaffoldFiles = @(Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'source-scaffold') -File -Recurse)
 if ($scaffoldFiles.Count -ne 6) {

@@ -46,6 +46,7 @@ add_library(ClientShell SHARED
 	ExplosionFX.cpp
 	FearMoreCameraProbe.cpp
 	FearMoreControllerMgr.cpp
+	FearMoreCorpsePersistence.cpp
 	FearMoreDefaultBindingResolver.cpp
 	FearMoreGraphicsSettings.cpp
 	FearMoreRemasterQuality.cpp

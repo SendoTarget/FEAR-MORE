@@ -16,11 +16,10 @@ function Get-RequiredSource {
 
     $path = Join-Path $RepositoryRoot $RelativePath
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        throw "Corpse-persistence source input is missing: $path"
+        throw "World-persistence source input is missing: $path"
     }
     return Get-Content -LiteralPath $path -Raw
 }
-
 function Get-SourceSection {
     param(
         [Parameter(Mandatory = $true)][string]$Source,
@@ -70,6 +69,17 @@ function Assert-SourceMatch {
 }
 
 $settingHeader = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\FearMoreCorpsePersistence.h'
+$settingSource = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\FearMoreCorpsePersistence.cpp'
+$baseFxHeader = Get-RequiredSource 'FEAR\Dev\Source\FEAR\Shared\BaseFx.h'
+$baseFxSource = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientFxDLL\BaseFx.cpp'
+$clientFxInstance = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ClientFXInstance.cpp'
+$clientFxManager = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ClientFXMgr.cpp'
+$clientShellCMake = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\CMakeLists.txt'
+$shellCasing = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ShellCasingFX.cpp'
+$sfxManager = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\SFXMgr.cpp'
+$shatterEffect = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ShatterEffect.cpp'
+$shatterManager = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ShatterEffectMgr.cpp'
+$modelDecalManager = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ModelDecalMgr.cpp'
 $gameClientShell = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\GameClientShell.cpp'
 $screenGame = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ScreenGame.cpp'
 $screenGameHeader = Get-RequiredSource 'FEAR\Dev\Source\FEAR\ClientShellDLL\ScreenGame.h'
@@ -81,8 +91,9 @@ $launcherProfile = Get-RequiredSource 'tools\runtime\FearLauncherProfile.psm1'
 $launcher = Get-RequiredSource 'tools\runtime\Start-FearMore.ps1'
 $engineOnlyEchoPatch = Get-RequiredSource 'tools\echopatch\EchoPatch.engine-only.ini'
 
-# One focused client header owns the cvar name and the only non-stock budget.
-# Counts must fit the unchanged uint8 performance-setting protocol.
+# One focused client module owns the legacy-compatible cvar name and all
+# source-owned level-session budgets. Body counts must still fit the unchanged
+# uint8 performance-setting protocol.
 Assert-SourceMatch $settingHeader 'kSettingName\s*=\s*"FearMoreCorpsePersistence"\s*;' `
     'The corpse-persistence cvar no longer has one shared source owner.'
 $radiusMatch = [regex]::Match($settingHeader, 'kBodyCapRadius\s*=\s*(?<Value>\d+)u\s*;')
@@ -98,6 +109,86 @@ if ($bodyCapRadius -ne 4096 -or $bodyCapRadiusCount -ne 24 -or $bodyCapTotalCoun
     $bodyCapRadiusCount -gt $bodyCapTotalCount -or $bodyCapTotalCount -gt [byte]::MaxValue) {
     throw "Corpse-persistence limits are no longer the reviewed 4096/24/48 bounded protocol values."
 }
+
+$worldBudgets = [ordered]@{
+    PersistentDecalBudget = 512
+    PersistentDebrisBudget = 256
+    PersistentModelDecalBudget = 256
+    PersistentShellCasingBudget = 200
+    PersistentShatterGroupBudget = 16
+}
+foreach ($entry in $worldBudgets.GetEnumerator()) {
+    $match = [regex]::Match($settingHeader, ('k{0}\s*=\s*(?<Value>\d+)u\s*;' -f $entry.Key))
+    if (-not $match.Success -or [int]$match.Groups['Value'].Value -ne $entry.Value) {
+        throw "The reviewed bounded world-persistence value is missing or changed: $($entry.Key)=$($entry.Value)."
+    }
+}
+Assert-SourceMatch $settingSource 'return\s*\(GetConsoleInt\(kSettingName,\s*0\)\s*==\s*1\);' `
+    'The shared world-persistence runtime query no longer strictly accepts only the saved value 1.'
+Assert-SourceMatch $clientShellCMake '(?m)^\s*FearMoreCorpsePersistence\.cpp\s*$' `
+    'The focused world-persistence runtime owner is missing from the rebuilt client target.'
+
+# ClientFX keys retain their authored behavior by default. The manager assigns
+# only EchoPatch-informed decal/debris families, excludes rocket debris, stops
+# non-looping groups from replaying, and enforces independent oldest-first caps.
+Assert-SourceMatch $baseFxHeader 'eFearMorePersistence_None[\s\S]*eFearMorePersistence_Decal[\s\S]*eFearMorePersistence_Debris' `
+    'ClientFX persistence classes are missing from the shared rebuilt ABI.'
+Assert-SourceMatch $baseFxSource 'm_eFearMorePersistenceClass\(eFearMorePersistence_None\)' `
+    'New ClientFX keys no longer preserve authored lifetimes by default.'
+foreach ($family in @('Stone_bullethole', 'Flesh_splat6', 'Debris_Electronic_Chunk', 'Debris_Wood_Chunk', 'Debris_Mug_Chunk', 'Debris_Vase1_Chunk')) {
+    Assert-SourceMatch $clientFxManager ([regex]::Escape('"' + $family + '"')) `
+        "The EchoPatch-informed persistent ClientFX family is missing: $family."
+}
+Assert-LiteralsInOrder $clientFxManager @(
+    'if(eFXType == CBaseFX::eDecalFX)',
+    'if(eFXType == CBaseFX::eLTBModelFX)',
+    'FearMoreEffectNameStartsWith(pszGroupName, "HRocket_Debris")',
+    'return CBaseFX::eFearMorePersistence_None;',
+    'pNewFX->SetFearMorePersistenceClass(GetFearMorePersistenceClass(fxInit.m_sName, pNewFX->GetFXType()));'
+) 'ClientFX persistence classification no longer preserves the rocket-debris exclusion or assigns classes at creation.'
+Assert-LiteralsInOrder $clientFxInstance @(
+    'bool bFearMorePersistent = FearMoreCorpsePersistence::IsEnabled()',
+    'bool bCompleteKey',
+    '!bFearMorePersistent'
+) 'Persistent ClientFX keys no longer bypass only their authored completion edge.'
+Assert-LiteralsInOrder $clientFxManager @(
+    'if(pInst->m_bFearMorePastDuration)',
+    'pInst->UpdateInterval(pInst->m_fDuration, pInst->m_fDuration + fFrameTime);',
+    'if(!pInst->m_bLoop && pInst->HasFearMorePersistentFX())',
+    'pInst->m_bFearMorePastDuration = true;',
+    'EnforceFearMorePersistenceBudget(CBaseFX::eFearMorePersistence_Decal,',
+    'FearMoreCorpsePersistence::kPersistentDecalBudget',
+    'EnforceFearMorePersistenceBudget(CBaseFX::eFearMorePersistence_Debris,',
+    'FearMoreCorpsePersistence::kPersistentDebrisBudget'
+) 'Non-looping persistent ClientFX can replay their group or escape the separate decal/debris budgets.'
+
+# Shells reuse SpecialFXList's existing oldest-item replacement. Shatter groups
+# and model decals add focused caps while Off keeps original expiry/fade paths.
+Assert-SourceMatch $sfxManager 'FearMoreCorpsePersistence::kPersistentShellCasingBudget,\s*// Shell casings' `
+    'Shell casings no longer reuse the existing bounded SpecialFXList budget.'
+Assert-LiteralsInOrder $shellCasing @(
+    'if(!FearMoreCorpsePersistence::IsEnabled())',
+    'm_fDieTime -= fFrameTime;',
+    'if(m_fDieTime <= 0.0f)'
+) 'Shell persistence no longer preserves the original expiry path when Off.'
+Assert-LiteralsInOrder $shatterManager @(
+    'FearMoreCorpsePersistence::IsEnabled()',
+    'm_ShatterList.size() >= FearMoreCorpsePersistence::kPersistentShatterGroupBudget',
+    'debug_delete(m_ShatterList.front());',
+    'm_ShatterList.erase(m_ShatterList.begin());',
+    'm_ShatterList.push_back(pNewEffect);'
+) 'Persistent shatter groups no longer evict the oldest group before adding a replacement.'
+Assert-SourceMatch $shatterEffect '!bPersistent\s*&&\s*\(m_fTotalElapsed >= fMaxLifetime\)' `
+    'Shatter lifetime is no longer extended only while bounded persistence is enabled.'
+Assert-SourceMatch $shatterEffect '!bPersistent\s*&&\s*\(m_fTotalElapsed > fStartFading\)' `
+    'Persistent shatter pieces still enter the authored fade path.'
+Assert-LiteralsInOrder $modelDecalManager @(
+    'uint32 nBudget = FearMoreCorpsePersistence::kPersistentModelDecalBudget;',
+    'if((m_fMaxDecals >= 0.0f) && ((uint32)m_fMaxDecals < nBudget))',
+    'if(nBudget == 0u)',
+    'RemoveDecal(0);',
+    'if (!FearMoreCorpsePersistence::IsEnabled() && (sDecalType.m_fFadeDelay >= 0.0f))'
+) 'Model decals no longer honor the lower performance cap, hard ceiling, replacement path, and stock-Off fade behavior.'
 
 # Off reads and sends the stock values unchanged. On substitutes constants only
 # after the established multiplayer early return and before the same message.
@@ -135,8 +226,8 @@ $screenBuild = Get-SourceSection $screenGame 'bool CScreenGame::Build()' 'uint32
 Assert-LiteralsInOrder $screenBuild @(
     'tcs.szHelpID = kCorpsePersistenceHelpId;',
     'tcs.pbValue = &m_bCorpsePersistence;',
-    'AddToggle(L"Corpse persistence", tcs)'
-) 'Corpse persistence is no longer exposed through the shared Gameplay toggle primitive.'
+    'AddToggle(L"World persistence", tcs)'
+) 'World persistence is no longer exposed through the shared Gameplay toggle primitive.'
 Assert-SourceMatch $screenGameHeader 'bool\s+m_bCorpsePersistence\s*;' `
     'The Gameplay screen no longer owns corpse-persistence toggle state.'
 $screenFocus = Get-SourceSection $screenGame 'void CScreenGame::OnFocus' 'void CScreenGame::GetHelpString' 'CScreenGame::OnFocus'
@@ -145,8 +236,8 @@ Assert-LiteralsInOrder $screenFocus @(
     'WriteConsoleInt(FearMoreCorpsePersistence::kSettingName, m_bCorpsePersistence ? 1 : 0);',
     'SaveSettings();'
 ) 'Corpse persistence no longer loads and persists through Gameplay settings.'
-Assert-SourceMatch $screenGame 'This does not persist decals, debris, or world state\.' `
-    'Gameplay help can be mistaken for EchoPatch world persistence.'
+Assert-SourceMatch $screenGame 'Keeps bounded bodies, blood and bullet decals, shell casings, shattered surfaces, and selected debris' `
+    'Gameplay help no longer describes the bounded level-session scope.'
 Assert-SourceMatch $profileManager '"EnhancedGore"\s*,\s*\r?\n\s*FearMoreCorpsePersistence::kSettingName\s*,\s*\r?\n\s*"FearMoreHDTextures"' `
     'SaveSettings no longer whitelists the shared corpse-persistence setting.'
 
@@ -272,8 +363,12 @@ Assert-LiteralsInOrder $processGore @(
     UnsignedClientProtocolVerified = $true
     MultiplayerGoreGateVerified  = $true
     GameplayPersistenceVerified  = $true
+    ClientFxBudgetsVerified      = $true
+    ShellBudgetVerified          = $true
+    ShatterBudgetVerified        = $true
+    ModelDecalBudgetVerified     = $true
     NewProfileOnlySeedVerified   = $true
     EchoPatchWorldHooksDisabled  = $true
     RuntimeLaunched              = $false
-    Note                           = 'Static source invariants plus an executable body-cap overlap model; compile and live encounter acceptance remain separate gates.'
+    Note                           = 'Static source invariants plus an executable body-cap overlap model; compile and live dense-effect acceptance remain separate gates.'
 }
