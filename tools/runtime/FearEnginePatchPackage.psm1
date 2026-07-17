@@ -8,6 +8,11 @@ $script:ExpectedManifestSha256 = '1E17062A5C7D8F1C04478F56E54A3C55EAFEF849026E99
 $script:ExpectedBinarySha256 = '04A3C95ABFE669D98F647245450863BA7D7E189CE2FE236DE92CB4ACC110FE95'
 $script:ExpectedProfileSha256 = 'A22FE3A56061A5ED82D78BA6DA82A93C99CB9D57826B6179DB75140716BEA66B'
 $script:ExpectedCompatibilityProof = 'PatchGameModules=0; GameClient.dll, GameServer.dll, and ClientFX hooks were intentionally skipped.'
+$script:ExpectedEnginePatchSourceArchiveSha256 = '0CDB16DCABA3FFFA93BBB639BE8A6E01E3D5FC5C1A5DAF87B6A1A4D201FBD6F9'
+$script:ExpectedEnginePatchPatchSha256 = '6AA776547DB07985908F99F4949237BD0C0777D6A14F8C5818EC69C95F111D89'
+$script:ExpectedMinHookCommit = 'c3fcafdc10146beb5919319d0683e44e3c30d537'
+$script:ExpectedMinHookArchiveSha256 = 'CDCB160F734D81BD4D235DFEA79E3F5A661C8EF0AB74FA814272AA5449069034'
+$script:ExpectedMinHookPatchSha256 = '22CA40B579613D8E5294713758E33702B4525564F487E7C38C341AFD2FC3C969'
 $script:ExpectedRemixManifestSha256 = '59E5F1D4808C18FC390A0D50E0BB12FBD697EA989E7FAAC82682988F8BEBD849'
 $script:ExpectedRemixBinarySha256 = '19FF5BC718C25AB07AF590D2131C8E876D7BC1891F9193CFEBBCAED4F63B57B5'
 $script:ExpectedRemixProfileSha256 = 'A47CC3C2F7EB75DA169EA5CC7001DFE489A3E3E81C8634A96283EB134E0777F9'
@@ -343,6 +348,71 @@ function Assert-FearCameraDiagnosticsSourceHashes {
     }
 }
 
+function Assert-FearEngineOnlyBuildSourceIdentity {
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)][string]$ManifestPath
+    )
+
+    $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+    $expectedValues = [ordered]@{
+        echoPatchCommit            = $script:ExpectedCommit
+        upstreamUrl                = 'https://github.com/Wemino/EchoPatch'
+        patchSha256                = $script:ExpectedEnginePatchPatchSha256
+        profileSha256              = $script:ExpectedProfileSha256
+        sourceArchiveSha256        = $script:ExpectedEnginePatchSourceArchiveSha256
+        minHookCommit              = $script:ExpectedMinHookCommit
+        minHookUpstreamUrl         = 'https://github.com/TsudaKageyu/minhook'
+        minHookSourceArchiveSha256 = $script:ExpectedMinHookArchiveSha256
+        minHookCrtPatchSha256      = $script:ExpectedMinHookPatchSha256
+        configuration              = 'Release'
+        solutionPlatform           = 'x86'
+        projectPlatform            = 'Win32'
+        platformToolset            = 'v143'
+        machine                   = '0x014c'
+        optionalHeader            = '0x010b'
+        compatibilityProof        = $script:ExpectedCompatibilityProof
+    }
+    foreach ($entry in $expectedValues.GetEnumerator()) {
+        $actual = [string](Get-RequiredJsonProperty -Object $Manifest -Name $entry.Key -ManifestPath $ManifestPath)
+        if ($actual -cne [string]$entry.Value) {
+            throw "Engine-only EchoPatch manifest $($entry.Key) is '$actual'; expected '$($entry.Value)': $ManifestPath"
+        }
+    }
+
+    foreach ($hashName in @('rebuiltMinHookSha256', 'binarySha256')) {
+        $hash = [string](Get-RequiredJsonProperty -Object $Manifest -Name $hashName -ManifestPath $ManifestPath)
+        if ($hash -cnotmatch '^[0-9A-F]{64}$') {
+            throw "Engine-only EchoPatch manifest contains an invalid ${hashName}: $ManifestPath"
+        }
+    }
+    foreach ($booleanName in @('submoduleCleanBefore', 'submoduleCleanAfter')) {
+        if (-not [bool](Get-RequiredJsonProperty -Object $Manifest -Name $booleanName -ManifestPath $ManifestPath)) {
+            throw "Engine-only EchoPatch manifest does not attest $booleanName`: $ManifestPath"
+        }
+    }
+    if ([bool](Get-RequiredJsonProperty -Object $Manifest -Name 'moduleHooks' -ManifestPath $ManifestPath) -or
+        [bool](Get-RequiredJsonProperty -Object $Manifest -Name 'runtimeAccepted' -ManifestPath $ManifestPath)) {
+        throw "Engine-only EchoPatch manifest has an unsupported module-hook or runtime-acceptance claim: $ManifestPath"
+    }
+
+    foreach ($sourceRecord in @(
+            [pscustomobject]@{ Name = 'patchSha256'; Path = 'patches\echopatch\0001-add-game-module-compatibility-switch.patch' },
+            [pscustomobject]@{ Name = 'profileSha256'; Path = 'tools\echopatch\EchoPatch.engine-only.ini' },
+            [pscustomobject]@{ Name = 'minHookCrtPatchSha256'; Path = 'patches\echopatch\0002-minhook-match-echopatch-crt.patch' }
+        )) {
+        $sourcePath = Join-Path $repositoryRoot $sourceRecord.Path
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            throw "Engine-only EchoPatch tracked source proof is missing: $sourcePath"
+        }
+        $actualHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+        $recordedHash = [string](Get-RequiredJsonProperty -Object $Manifest -Name $sourceRecord.Name -ManifestPath $ManifestPath)
+        if ($actualHash -cne $recordedHash) {
+            throw "Engine-only EchoPatch manifest $($sourceRecord.Name) does not match tracked source: $sourcePath"
+        }
+    }
+}
+
 function Get-FearRtxCameraDiagnosticEchoPatchPackageIdentity {
     param(
         [Parameter(Mandatory = $true)][string]$PackageRoot,
@@ -550,10 +620,11 @@ function Get-FearEngineOnlyEchoPatchPackageIdentity {
         -PackageRoot $PackageRoot `
         -ManifestPath $ManifestPath `
         -Description 'Engine-only EchoPatch' `
-        -ExpectedManifestSha256 $script:ExpectedManifestSha256 `
-        -ExpectedBinarySha256 $script:ExpectedBinarySha256 `
+        -ExpectedManifestSha256 $null `
+        -ExpectedBinarySha256 $null `
         -ExpectedProfileSha256 $script:ExpectedProfileSha256
     $manifest = $core.Manifest
+    Assert-FearEngineOnlyBuildSourceIdentity -Manifest $manifest -ManifestPath $ManifestPath
     $commit = [string](Get-RequiredJsonProperty -Object $manifest -Name 'echoPatchCommit' -ManifestPath $ManifestPath)
     $moduleHooks = [bool](Get-RequiredJsonProperty -Object $manifest -Name 'moduleHooks' -ManifestPath $ManifestPath)
     $compatibilityProof = [string](Get-RequiredJsonProperty -Object $manifest -Name 'compatibilityProof' -ManifestPath $ManifestPath)
