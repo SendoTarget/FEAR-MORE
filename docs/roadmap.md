@@ -1,119 +1,209 @@
 # FearMore roadmap
 
-## Fixed product decisions
+Last updated: 2026-07-18
 
-1. The first working target is stock-compatible F.E.A.R. v1.08 on Win32.
-2. The original GOAP/A* AI stays. We fix timing and observable defects before considering new behavior.
-3. Enhanced Gore is the first major gameplay-facing feature.
-4. Enhanced Gore is opt-in. Original gore and low-violence behavior remain available.
-5. EchoPatch remains a separately built GPL runtime patch until the inherited source-license picture is resolved.
-6. Retail archives, the Public Tools SDK, and derived assets remain local and are never required in Git history.
-7. Gameplay must be Hor+ and usable at 3440 x 1440 and comparable ultrawide modes. Pre-rendered video may remain aspect-correct with black bars.
+## Status key
 
-## M0 - reproducible stock game modules
+- **Done**: implemented and supported by automated checks or a recorded live game pass.
+- **Incomplete**: implemented in a limited scope, but important runtime coverage or polish is still missing.
+- **Not done**: planned work has not been implemented.
+- **Parked**: research exists, but it is not part of the playable build and makes no feature claim.
 
-Status on 2026-07-16: the compile baseline and representative isolated-runtime acceptance are complete; full export-surface comparison, campaign coverage, and clean-machine packaging remain open.
+## At a glance
 
-Completed:
+| Area | Status | Short version |
+| --- | --- | --- |
+| M0: rebuilt F.E.A.R. modules | **Incomplete** | Debug and Release x86 modules build and run, but full campaign, save, export, ABI, and multiplayer coverage is missing. |
+| M1: modern presentation | **Incomplete** | The 3440 x 1440 D3D11 Modern lane is playable; the complete resolution, HUD, campaign, effects, controller, and hardware-performance matrices are unfinished. |
+| M2: Enhanced Gore and persistence | **Incomplete** | The first postmortem sever/save slice and bounded level-session persistence work, but the full gore/save/budget/multiplayer acceptance matrix is unfinished. |
+| M3: new gore content | **Not done** | No new project-owned wound meshes, detached parts, materials, sounds, or effect pack has been shipped. |
+| M4: AI work | **Incomplete** | High-FPS scheduling and profiling are implemented; new tactical behavior improvements have not started. |
+| Public build and installer | **Incomplete** | The public bootstrap/build pipeline works; broader clean-PC testing, signing, and the v0.1.2 Release-page upload remain open. |
+| RTX and owned modern renderer | **Parked** | Diagnostic work exists, but RTX, path tracing, DLSS, HDR, and a replacement renderer do not work as playable features. |
 
-- Added actual F.E.A.R. target ownership beneath `BUILD_FEAR`.
-- Built the F.E.A.R.-specific GUI, client/server shared variants, ClientFX, ClientShell, and GameServer.
-- Used the official Public Tools source and its exact F.E.A.R. platform, StdLith, assert, CRC, hook, and SDK inputs without committing them.
-- Corrected configuration handling so Debug no longer inherits `_FINAL` and silently drops AI/assertion diagnostics.
-- Serialized the generated MSBuild project graph while retaining `/MP` source compilation; multiprocess project mode fails in the legacy `ZERO_CHECK` graph without a diagnostic.
-- Produced Debug and Release x86 artifacts:
-  - `GameClient.dll`
-  - `GameServer.dll`
-  - `ClientFx.fxd`
-- Verified PE32/x86 headers and the expected SDK module entry-point exports.
-- Staged the rebuilt modules beside user-owned retail data without overwriting the original installation.
-- Reached the menu and `ATC_Roof`, loaded existing and fresh quick saves, exercised active AI and ClientFX, and exited cleanly in representative D3D11 runs.
+## Fixed project decisions
 
-Remaining acceptance:
+- Target stock-compatible F.E.A.R. v1.08 on Win32 first.
+- Preserve the original GOAP/A* AI and authored navigation.
+- Keep Enhanced Gore optional and preserve stock gore-off and low-violence behavior.
+- Keep EchoPatch as a separate GPL component.
+- Keep retail files, the Public Tools SDK, proprietary middleware, and third-party assets out of Git.
+- Require usable Hor+ gameplay at 3440 x 1440 and comparable ultrawide modes.
+- Keep pre-rendered videos aspect-correct; black bars are acceptable.
+- Preserve the original installation, profiles, saves, and Stable fallback paths.
 
-- Compare the rebuilt export surface with the user's original retail v1.08 modules.
-- Broaden the representative menu, level, save, AI, ClientFX, and clean-exit passes to the full campaign and a wider legacy-save set.
-- Record any retail ABI or database compatibility failures before changing gameplay.
+## M0: reproducible rebuilt game modules
 
-The old engine executable and its hardcoded legacy DirectX SDK paths are a separate build lane; they are not dependencies of this milestone.
+### Done
 
-## M1 - modern presentation through EchoPatch and source-owned fixes
+- Built `GameClient.dll`, `GameServer.dll`, and `ClientFx.fxd` as PE32/x86 Debug and Release modules.
+- Added focused CMake ownership for the F.E.A.R. client, server, ClientFX, GUI, and shared libraries.
+- Built from a user-supplied F.E.A.R. Public Tools 1.08 SDK without committing the SDK.
+- Corrected Debug/Release definitions and the legacy build ordering needed by Visual Studio 2022 with the v141 toolset.
+- Validated required module entry points and x86 output identity.
+- Staged rebuilt modules beside user-owned retail data without overwriting the retail installation.
+- Reached the menu and `ATC_Roof`, loaded fresh and existing quick saves, exercised active AI and ClientFX, and exited cleanly in representative runs.
 
-Status on 2026-07-16: the one-click Modern lane now combines rebuilt modules, dgVoodoo2 D3D11, the pinned engine-only EchoPatch derivative, optional Max 2x downsampling, and CAS while preserving an isolated native-D3D9 Stable fallback. Real 3440 x 1440 gameplay, Max 2x, focus restoration, startup/menu input, clean exit, representative AI caps, and bidirectional cross-cap saves have passed. Full resolution/campaign matrices, broad HUD/menu migration, sustained performance budgets, physical-controller acceptance, and clean-machine packaging remain open.
+### Incomplete
 
-Modern consumes only the pinned engine-only EchoPatch derivative with retail game-module hooks disabled. The full stock profile remains a separate reference lane because its client, server, and ClientFX offsets cannot be presumed compatible with rebuilt modules; source-owned equivalents keep their existing game-module owners.
+- Compare every rebuilt export with the original retail v1.08 modules.
+- Test every campaign level, transition, major effect family, and a wider collection of old saves.
+- Audit every retail-engine interface that crosses incompatible VC7.1 C++ standard-library types.
+- Prove rebuilt multiplayer startup, hosting, joining, content transfer, save/state behavior, and long-session stability.
+- Prove compatibility on more Windows versions, GPUs, drivers, storefront editions, and clean PCs.
 
-Work:
+### Not done
 
-- Validate EchoPatch against the chosen retail executable and stock modules, keeping its `dinput8.dll`, configuration, notices, and source boundary intact.
-- Test rebuilt game modules without EchoPatch first. Its client, server, and ClientFX hooks use retail signatures/offsets and cannot be presumed compatible with v141 binary layouts.
-- Classify each desired EchoPatch fix as engine-only, game-module-owned, or mixed; keep verified engine hooks separate and independently port game-module behavior into source.
-- Test 1920 x 1080, 2560 x 1080, **3440 x 1440**, 3840 x 1600, 5120 x 1440, 2560 x 1440, and 3840 x 2160 before duplicating any patch in game source.
-- Preserve vertical FOV and expand horizontally for gameplay, zoom, and real-time cinematics. Keep important HUD elements within a usable 16:9 safe area at 32:9 and validate mouse hit regions independently from visual placement.
-- Preserve the pre-rendered movie aspect ratio and center it with black bars when the output aspect differs. Do not stretch or crop FMVs to fill ultrawide screens.
-- Migrate raw-positioned HUD and menu controls plus mouse hit testing to the shared safe-area transform; keep crosshair, world markers, and fullscreen effects on explicit full-viewport paths.
-- Profile `SSAAScale` 1.0, 1.25, and 1.5 at 3440 x 1440 before treating 2.0 (four times native pixels) as a usable quality target.
-- Treat EchoPatch's HUD exception lists and timing corrections as regression data.
-- Where source ownership is beneficial, put shared HUD scaling in `InterfaceResMgr`/`HUDItem`/`LayoutDB` and world render scaling in `PlayerCamera` plus the renderer resolve path.
-- Keep HUD/text at native resolution and make legacy MSAA mutually exclusive with SSAA initially.
-- Keep the NVIDIA shadow-corruption and aspect-aware soft-shadow blur fixes enabled. Trace an Enhanced Shadows profile through the active retail Jupiter EX path and measure `Light_ShadowVolume`, `LODShadows`, `Light_ShadowBlur`, and volumetric-light occlusion independently; do not configure dormant generic-renderer variables as retail features.
-- Add DXVK only as a separate experimental runtime lane after the native D3D9 baseline passes. Run one bounded RTX Remix geometry-capture spike with an early stop gate; never advertise Remix compatibility before stable world and character capture.
-- Apply only measured high-FPS scheduler corrections; do not replace AI logic.
+- A compatible standalone executable built from the inherited Jupiter engine tree.
+- x64 game modules or engine conversion.
 
-Acceptance:
+## M1: modern display, rendering, controls, and packaging
 
-- 4:3, 16:9, 16:10, 21:9, and 32:9 retain correct vertical FOV and usable UI; the named matrix above, especially 3440 x 1440, passes gameplay, HUD, menu, cinematic, post-effect, and movie checks.
-- Pre-rendered movies remain centered and aspect-correct; black bars are accepted.
-- A 2.0 world render scale creates the expected internal dimensions and resolves before HUD rendering.
-- 60, 120, and 240 FPS produce equivalent AI reactions within defined tolerances.
-- Stock saves and authored encounter behavior remain compatible.
+### Done
 
-## M2 - Enhanced Gore foundation
+- Added source-owned Hor+ gameplay and real-time camera handling.
+- Added a centered 16:9 HUD safe-area option with a full-width fallback.
+- Added aspect-preserving pre-rendered movie fitting.
+- Live-tested 3440 x 1440 gameplay through the accepted dgVoodoo2 D3D9-to-D3D11 lane.
+- Live-tested Native rendering and Max 2x at 3440 x 1440; Max 2x logged a 6880 x 2880 internal swapchain resolved to 3440 x 1440.
+- Added optional ReShade/FidelityFX CAS sharpening with Off as the fallback.
+- Added in-game renderer quality, effects-target, post-processing, HUD-placement, and remaster-quality controls.
+- Added the focused High volumetric-light shadow target while leaving incompatible authored mirror/reflection targets at native size.
+- Added an isolated engine-only EchoPatch build with retail game-module hooks disabled.
+- Added isolated Modern and Stable presets, separate profiles/saves, focus recovery, guarded restaging, and clean shutdown behavior.
+- Corrected AI scheduling across representative 60, 120, 144, and near-240 FPS combat runs while preserving GOAP/A* behavior.
+- Added SDL3 controller input, mappings, in-game settings, keyboard/mouse coexistence, legacy fallback, and automated package/source checks.
+- Added validated Stable Lite HD-texture mounting and passed the known Interval 01 to Interval 02 crash gate at 3440 x 1440.
 
-Status on 2026-07-17: the first opt-in postmortem sever slice persists location damage and detached-location state while reusing the stock sever pipeline, and a representative rebuilt combat pass accepted sever presentation plus quick-save/reload restoration. The separate source-owned World persistence toggle keeps its legacy profile field, preserves stock effect lifetimes/body caps when Off, and when On adds bounded 4096/24/48 body limits plus 512 ClientFX decals, 256 selected debris keys, 256 model decals, 200 casings, and 16 shatter groups for the loaded level. Existing lower limits still win and EchoPatch game/world hooks remain disabled. Debug/Release compilation, static invariants, and a prepared 3440 x 1440 D3D11/CAS startup smoke pass; dense live effect pressure and the broader gore/save matrix remain open.
+### Incomplete
 
-Extend existing damage, sever, decal, ClientFX, attachment, ragdoll, and persistence primitives instead of creating a parallel damage system.
+- Run the full live resolution matrix: 1920 x 1080, 2560 x 1080, 3440 x 1440, 3840 x 1600, 5120 x 1440, 2560 x 1440, and 3840 x 2160, plus representative 4:3 and 16:10 modes.
+- Validate selection, apply, revert, restart, profile reload, gameplay, menus, HUD, mouse hit regions, cinematics, movies, loading screens, and post-effects at every target aspect.
+- Migrate remaining raw-positioned HUD and menu elements to the shared safe-area path.
+- Check scope geometry, viewmodel edges, subtitles, objectives, interaction prompts, damage indicators, and authored cinematics across the complete matrix.
+- Repeat the corrected ATC helicopter composition in Native mode, ordinary campaign entry, skip/restart paths, and unrelated cinematics.
+- Run full-campaign D3D9/D3D11 parity, save/load, effect, long-transition, alt-tab, and shutdown testing.
+- Profile Native and Max 2x across more GPUs and define sustained frame-time and memory budgets.
+- Test the stock EchoPatch `SSAAScale` 1.25, 1.5, and 2.0 paths separately.
+- Complete a physical-controller gameplay matrix covering hotplug, menus, every mapped action, vibration, simultaneous mouse/keyboard, focus loss, save/load, clean exit, and aim consistency at 60/120/144/240 FPS.
+- Run Stable Lite textures across the full campaign. Full v2.0.2 remains experimental because it reproducibly crashes at a tested level transition.
+- Measure and improve active retail shadows beyond the existing NVIDIA fix, soft-shadow settings, and focused volumetric target.
 
-Work:
+### Not done
 
-- Add an `EnhancedGore` mode while preserving existing gore-off, low-violence, and stock behavior.
-- Add stable `DamageZoneId` and `SeverPieceId` values while retaining legacy broad `HitLocation` mappings.
-- Carry the exact hit node/zone in an immutable damage event instead of consulting ambient last-hit state.
-- Version sever messages and replicate the explicit piece identity.
-- Persist per-zone accumulated damage, wound tier, detached state, and damage-type rules.
-- Allow bounded postmortem wounds/dismemberment without changing health, kill credit, score, triggers, or invoking death twice.
-- Profile and tune the bounded World persistence ceilings under dense campaign combat; detached-client-part transforms and arbitrary save serialization remain outside this slice.
+- True HDR/10-bit output or HDR-aware color grading.
+- Temporal antialiasing, DLAA, DLSS, FSR 2/3, XeSS, ray reconstruction, or frame generation.
+- A source-owned D3D11/D3D12/Vulkan renderer replacing the retail D3D9 renderer.
+- A supported DXVK runtime lane.
+- New high-resolution material, lighting, reflection, or shadow-map systems.
+- Full controller remapping, controller glyphs, gyro, touchpad support, and multiple-controller selection.
 
-The first vertical slice is one supported humanoid family, one wound-zone transition, one postmortem sever result, save/load, and stock-versus-enhanced comparison. Broader content follows only after that path is correct.
+## M2: Enhanced Gore and bounded world persistence
 
-Initial behavior intentionally excludes live limb-loss gameplay. That would require new animations, weapon handling, locomotion, navigation constraints, AI world-state facts, and balance changes and must be approved as a separate behavior change.
+### Done
 
-Acceptance:
+- Added an optional `Enhanced gore` in-game setting; stock gore and low-violence policy still take precedence.
+- Added bounded postmortem location damage using the existing F.E.A.R. sever, ragdoll, attachment, ClientFX, database, and damage systems.
+- Prevented postmortem damage from changing health, score, kills, death commands, or death broadcasts.
+- Added per-location de-duplication, sever exclusions, a per-body limit, and fresh dispatch-scoped hit-node validation.
+- Added save schema 283 for detached-location and postmortem-damage state while retaining isolated retail/FearMore save roots.
+- Replayed persisted detached locations for local single-player without changing the stock multiplayer packet shape.
+- Completed a representative combat pass with visible postmortem severing and quick-save/reload restoration.
+- Added optional bounded level-session persistence for bodies, blood/bullet decals, model decals, selected debris, shell casings, and shattered groups.
+- Enforced the current ceilings: 4096/24/48 bodies, 512 ClientFX decals, 256 selected debris keys, 256 model decals, 200 shell casings, and 16 shatter groups.
+- Preserved original effect lifetimes and performance-derived body caps when World persistence is Off.
+- Added static source/model tests for budgets, exclusions, save ordering, de-duplication, low-violence precedence, and disabled EchoPatch world hooks.
 
-- Exact zone and sever-piece identity survives save/load and multiplayer replication.
-- Corpse damage cannot duplicate death/scoring side effects.
-- Original and low-violence modes remain bit-for-bit compatible where practical.
-- Long levels stay within explicit object, physics, and memory budgets.
+### Incomplete
 
-## M3 - Enhanced Gore content
+- Complete the live stock-versus-enhanced comparison with gore disabled and low-violence behavior checked explicitly.
+- Confirm exact same-location duplicate rejection after saving and reloading.
+- Test per-body cap `1`, multiple detach locations, incompatible sever combinations, rapid fire, several nearby corpses, and the global sever-body cap.
+- Test positional, collision, explosion, rejected/filtered, crouched, knocked-down, gibbed, death-effect, and player-corpse exclusions live.
+- Exceed every body/effect ceiling in dense combat and measure frame time, physics use, memory, recycling order, and permanent-body exemptions.
+- Test retail schema-282 save import more broadly and confirm FearMore saves remain isolated from retail.
+- Complete multiplayer host/join/late-join checks proving Enhanced Gore cannot be remotely enabled and historical sever messages are not replayed.
+- Validate the current mechanics across all relevant enemy humanoid model, skeleton, armor, and attachment combinations.
+- Decide whether exact detached-part transforms should be serialized; they currently reconstruct at the configured source node.
 
-- Author project-owned wound caps, separated surfaces, detached parts, materials, decals, particles, audio, rigid bodies, and LODs.
-- Keep retail-derived source assets local; publish only assets with explicit redistribution rights.
-- Validate every supported humanoid skeleton and armor/attachment combination.
+### Not done
 
-## M4 - measured AI improvements
+- Live nonlethal limb loss and the required animation, weapon, locomotion, navigation, AI, and balance changes.
+- Player-corpse severing with respawn-safe restoration.
+- Arbitrary world debris, glass, casing, and detached-part transforms serialized into saves.
+- New network packets or incompatible multiplayer sever replication.
 
-Only begin after timing correctness and repeatable encounter telemetry exist.
+## M3: new Enhanced Gore content
 
-- Improve target-confidence memory, suppression, ally danger, blocked-route memory, cover reservations, grenade safety, and plan-failure recovery inside the existing GOAP architecture.
-- Measure detection latency, cover contention, flank completion, grenade/friendly-fire incidents, navigation failures, and CPU time.
-- Consider local crowd avoidance only if encounter data demonstrates a real congestion problem. Preserve authored traversal links and navmesh semantics.
+### Done
 
-## Deferred
+- Documented free-asset, provenance, realism, and license-selection rules.
+- Identified candidate creation tools and reusable asset sources.
 
-- x64 conversion.
-- HDR/10-bit presentation.
-- Direct DLSS/DLAA, FSR 2/3, or frame generation until a modern renderer supplies depth, motion vectors, jitter, camera data, HUD-free color, and presentation integration.
-- Replacing D3D9 rather than maintaining it; the isolated DXVK and RTX Remix probes do not count as a source renderer replacement.
-- Replacing GOAP or authored navigation.
-- A standalone engine executable built from the inherited Jupiter tree.
+### Not done
+
+- Project-owned wound caps, separated surfaces, detached parts, gibs, materials, decals, particles, audio, rigid bodies, or LODs.
+- A distributable gore asset pack with complete source and license records.
+- Content validation across supported humanoid skeletons, armor, attachments, weapons, damage types, and quality levels.
+
+## M4: AI correctness and measured behavior improvements
+
+### Done
+
+- Corrected the high-FPS scheduler so active AI can update every server frame.
+- Preserved intentional sleep paths, the existing GOAP planner, goals, actions, sensors, squads, navigation, and authored traversal links.
+- Added an opt-in server-frame AI profiler and read-only capture analyzers.
+- Passed representative active-combat windows at measured 60.000, 119.909, 143.901, and 237.541 FPS with no AI-starvation frames.
+- Passed bidirectional 60-to-240 and 240-to-60 quick-save restoration with active AI.
+
+### Incomplete
+
+- Repeat the encounter with retail-style `AIUpdateInterval 0.01` as a direct control.
+- Test flame-pot traversal from a new game and restored save.
+- Expand profiling to more encounters, enemy counts, levels, frame rates, CPUs, saves, and long sessions.
+- Define acceptable CPU budgets for frame-synced AI at very high frame rates.
+- Add behavior-level telemetry for detection, cover contention, flanking, grenades, friendly fire, navigation failures, and plan recovery.
+
+### Not done
+
+- Improved target-confidence memory, suppression response, ally-danger handling, blocked-route memory, cover reservations, grenade safety, or plan-failure recovery.
+- Local crowd avoidance; add it only if measured congestion proves it is needed.
+- A replacement planner, navigation system, or authored encounter redesign.
+
+## Public repository, bootstrap, and installer
+
+### Done
+
+- Published the reviewed source/build-tooling boundary without retail files, SDK files, downloaded binaries, HD textures, compiled game modules, or playable installers.
+- Added a component-scoped MIT license for clearly FearMore-owned work while retaining EchoPatch GPL and third-party/inherited boundaries.
+- Added a scripts-only Project Installer Bootstrap that locates or offers exact public prerequisites, clones the tagged source and submodule, validates Public Tools, and builds the private playable installer locally.
+- Added manual one-command project and private launcher-package builders with exact manifests and checksums.
+- Built and verified the v0.1.2 bootstrap locally from the exact public tag.
+
+### Incomplete
+
+- Upload the already verified v0.1.2 bootstrap, manifest, and checksum files to the GitHub Releases page. The v0.1.2 source tag is public, but its Release-page assets are not yet published.
+- Repeat the complete bootstrap-to-playable-install flow on independent clean Windows PCs owned by other legal F.E.A.R. users.
+- Broaden failure recovery for interrupted prerequisite installation, SDK discovery, compilation, setup, and first launch based on real outside-user reports.
+- Decide whether every locally compiled or combined artifact can legally be redistributed; current playable outputs remain local/private.
+- Add commercial code signing if the project obtains an appropriate certificate. Current community installers remain unsigned.
+
+## Parked research
+
+- RTX Remix staging, camera diagnostics, and configuration experiments remain available for future investigation.
+- The current RTX path has not proved complete scene capture, stable gameplay, path tracing, DLSS, ray reconstruction, or acceptable performance.
+- The observed RTX/driver crash and incomplete camera/geometry bridge keep this outside the playable Modern build.
+- No RTX, HDR, DLSS, ray-tracing, or replacement-renderer claim should be made unless a future implementation passes representative gameplay and full acceptance gates.
+
+## Definition of a complete remaster release
+
+FearMore is not complete until all of the following are true:
+
+- the supported campaign and save matrix passes with rebuilt modules;
+- the supported resolution/aspect matrix passes gameplay, UI, movies, effects, and restart checks;
+- Modern and Stable renderer paths pass long-session compatibility and performance budgets on multiple systems;
+- AI correctness passes broader encounters and frame-rate transitions without unacceptable CPU cost;
+- Enhanced Gore and World persistence pass their full live correctness, budget, save, and multiplayer-preservation matrices;
+- controller support passes a physical gameplay matrix;
+- the public bootstrap succeeds on independent clean PCs; and
+- every distributed component has a confirmed provenance, license, notice, and redistribution path.
